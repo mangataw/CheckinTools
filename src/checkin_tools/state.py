@@ -56,4 +56,3 @@ def save_daily_state(path: str | Path, state: DailyState) -> None:
         + "\n",
         encoding="utf-8",
     )
-
