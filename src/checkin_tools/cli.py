@@ -70,4 +70,6 @@ def main(argv: list[str] | None = None) -> int:
                 failed = True
         return 1 if failed else 0
 
-    return Runner(checkers, notifiers).run(args.site, notify=not args.no_notify).exit_code
+    return Runner(checkers, notifiers, config.secrets()).run(
+        args.site, notify=not args.no_notify
+    ).exit_code

@@ -15,9 +15,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Runner:
-    def __init__(self, checkers: Iterable[Checker], notifiers: Iterable[Notifier] = ()) -> None:
+    def __init__(
+        self,
+        checkers: Iterable[Checker],
+        notifiers: Iterable[Notifier] = (),
+        secrets: tuple[str, ...] = (),
+    ) -> None:
         self.checkers = checker_map(checkers)
         self.notifiers = list(notifiers)
+        self.secrets = secrets
 
     def run(self, site: str = "all", *, notify: bool = True) -> RunReport:
         selected = list(self.checkers.values()) if site == "all" else [self.checkers.get(site)]
@@ -34,7 +40,7 @@ class Runner:
                         checker.site,
                         label,
                         ResultStatus.FAILED,
-                        sanitize_text(exc),
+                        sanitize_text(exc, self.secrets),
                         time.monotonic() - started,
                     )
                 report.results.append(result)
@@ -48,7 +54,7 @@ class Runner:
                         NotificationResult(notifier.channel, True, "notification sent")
                     )
                 except Exception as exc:  # isolation boundary for channels
-                    summary = sanitize_text(exc)
+                    summary = sanitize_text(exc, self.secrets)
                     report.notifications.append(
                         NotificationResult(notifier.channel, False, summary)
                     )

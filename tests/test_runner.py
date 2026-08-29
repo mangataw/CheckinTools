@@ -64,6 +64,19 @@ def test_notification_failure_isolated():
     assert report.exit_code == 1
 
 
+def test_runner_redacts_configured_secrets_from_extension_errors():
+    class LeakingNotifier(FakeNotifier):
+        channel = "leaking"
+
+        def send(self, report):
+            raise RuntimeError("opaque-private-value")
+
+    report = Runner(
+        [FakeChecker(("ok",))], [LeakingNotifier()], ("opaque-private-value",)
+    ).run()
+    assert report.notifications[0].summary == "***"
+
+
 def test_site_selection_and_unknown_site():
     checker = FakeChecker(("ok",))
     assert Runner([checker]).run("fake").exit_code == 0
@@ -78,4 +91,3 @@ def test_registries_reject_duplicates():
     first, second = FakeNotifier(), FakeNotifier()
     with pytest.raises(ValueError):
         notifier_map([first, second])
-
