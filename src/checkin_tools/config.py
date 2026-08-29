@@ -42,6 +42,8 @@ class AppConfig:
     retries: int
     dingtalk: DingTalkConfig | None
     feishu: FeishuConfig | None
+    notify_channel: str
+    notify_mode: str
 
     def secrets(self) -> tuple[str, ...]:
         values = [*self.javbus_cookies]
@@ -118,6 +120,17 @@ def load_config(
         ):
             raise ConfigError("FEISHU_WEBHOOK must be a safe HTTPS URL")
 
+    notify_channel = (environ.get("CHECKIN_NOTIFY_CHANNEL") or "auto").strip().lower()
+    if notify_channel not in {"auto", "all", "dingtalk", "feishu"}:
+        raise ConfigError("CHECKIN_NOTIFY_CHANNEL must be auto, all, dingtalk, or feishu")
+    if notify_channel == "dingtalk" and not dingtalk_values:
+        raise ConfigError("CHECKIN_NOTIFY_CHANNEL selects DingTalk but it is not configured")
+    if notify_channel == "feishu" and not feishu_values:
+        raise ConfigError("CHECKIN_NOTIFY_CHANNEL selects Feishu but it is not configured")
+    notify_mode = (environ.get("CHECKIN_NOTIFY_MODE") or "summary").strip().lower()
+    if notify_mode not in {"summary", "individual"}:
+        raise ConfigError("CHECKIN_NOTIFY_MODE must be summary or individual")
+
     return AppConfig(
         javbus_cookies=_lines(environ.get("JAVBUS_COOKIES")),
         fuliba_accounts=tuple(
@@ -134,4 +147,6 @@ def load_config(
         retries=retries,
         dingtalk=DingTalkConfig(*dingtalk_values) if dingtalk_values else None,
         feishu=FeishuConfig(*feishu_values) if feishu_values else None,
+        notify_channel=notify_channel,
+        notify_mode=notify_mode,
     )

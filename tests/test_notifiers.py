@@ -138,7 +138,7 @@ def test_summary_contains_only_expected_aggregate_fields():
     assert "notification test" in format_summary(RunReport())
 
 
-def test_build_notifiers_enables_every_complete_channel():
+def test_build_notifiers_defaults_to_dingtalk_and_can_enable_all():
     config = load_config(
         {
             "DINGTALK_ACCESS_TOKEN": "example-token",
@@ -148,4 +148,20 @@ def test_build_notifiers_enables_every_complete_channel():
         },
         load_local_dotenv=False,
     )
-    assert [notifier.channel for notifier in build_notifiers(config)] == ["dingtalk", "feishu"]
+    assert [notifier.channel for notifier in build_notifiers(config)] == ["dingtalk"]
+    assert [notifier.channel for notifier in build_notifiers(config, "all")] == [
+        "dingtalk",
+        "feishu",
+    ]
+    assert [notifier.channel for notifier in build_notifiers(config, "feishu")] == ["feishu"]
+
+
+def test_build_notifiers_auto_uses_feishu_when_dingtalk_is_absent():
+    config = load_config(
+        {
+            "FEISHU_WEBHOOK": "https://example.com/hook",
+            "FEISHU_SECRET": "example-secret",
+        },
+        load_local_dotenv=False,
+    )
+    assert [notifier.channel for notifier in build_notifiers(config)] == ["feishu"]

@@ -35,6 +35,7 @@ class FulibaChecker(Checker):
 
     def check(self, account: FulibaAccount, account_label: str) -> CheckinResult:
         started = time.monotonic()
+        retryable = False
         try:
             session = self.client.new_session()
             session.headers.update({"Cookie": account.cookie})
@@ -74,13 +75,18 @@ class FulibaChecker(Checker):
             summary = sanitize_text(exc, self._secrets)
         except requests.Timeout:
             summary = "request timed out"
+            retryable = True
         except UnsafeRedirectError:
             summary = "unsafe check-in link or redirect blocked"
         except requests.RequestException:
             summary = "network request failed"
+            retryable = True
         except Exception as exc:
             summary = f"unexpected checker error: {sanitize_text(exc, self._secrets)}"
-        return self._result(account_label, ResultStatus.FAILED, summary, started)
+            retryable = False
+        return self._result(
+            account_label, ResultStatus.FAILED, summary, started, retryable=retryable
+        )
 
     @staticmethod
     def _state(html: str) -> tuple[str | None, str, str, bool]:
@@ -106,9 +112,19 @@ class FulibaChecker(Checker):
         return candidate
 
     def _result(
-        self, account_label: str, status: ResultStatus, summary: str, started: float
+        self,
+        account_label: str,
+        status: ResultStatus,
+        summary: str,
+        started: float,
+        *,
+        retryable: bool = False,
     ) -> CheckinResult:
         return CheckinResult(
-            self.site, account_label, status, summary, max(0.0, time.monotonic() - started)
+            self.site,
+            account_label,
+            status,
+            summary,
+            max(0.0, time.monotonic() - started),
+            retryable,
         )
-

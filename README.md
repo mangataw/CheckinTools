@@ -6,8 +6,8 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，支持�
 
 - JavBus 论坛每日登录积分
 - 福利吧签到
-- 钉钉自定义群机器人汇总通知
-- 飞书自定义群机器人汇总通知
+- 钉钉自定义群机器人通知
+- 飞书自定义群机器人通知
 
 本项目开放源代码并采用 MIT License，但主要服务于作者自用。不保证第三方站点接口、页面结构或签到规则长期可用。使用者需自行承担账号、Cookie 以及第三方服务规则相关风险。
 
@@ -17,7 +17,7 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，支持�
 2. 打开仓库的 **Settings → Secrets and variables → Actions**。
 3. 按下表创建所需的 Repository secrets。
 4. 在 **Actions → Daily check-in → Run workflow** 中先手动选择单个站点验证。
-5. 确认运行正常后保留定时任务。默认计划为每天北京时间 01:30（UTC 17:30）。
+5. 确认运行正常后保留定时任务。默认每天触发两次：北京时间 01:30 和 08:30；每次触发后会随机延迟 0–30 分钟。
 
 至少需要配置一个站点。通知是可选的；一个通知渠道的两个字段必须同时配置或同时留空。
 
@@ -30,6 +30,15 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，支持�
 | `DINGTALK_SECRET` | 钉钉通知必需 | 自定义机器人加签 Secret |
 | `FEISHU_WEBHOOK` | 飞书通知必需 | 自定义机器人完整 HTTPS Webhook |
 | `FEISHU_SECRET` | 飞书通知必需 | 自定义机器人签名校验 Secret |
+
+通知路由和消息模式使用 Repository variables（不是 Secrets），均可不配置：
+
+| Variable | 默认值 | 说明 |
+| --- | --- | --- |
+| `CHECKIN_NOTIFY_CHANNEL` | `auto` | `auto`、`all`、`dingtalk` 或 `feishu` |
+| `CHECKIN_NOTIFY_MODE` | `summary` | `summary` 汇总发送，或 `individual` 逐账号发送 |
+
+`auto` 只启用一个已配置渠道：仅配置一个时使用该渠道；钉钉和飞书都配置时默认使用钉钉。设置为 `all` 才会同时发送到两个渠道。
 
 多账号 Secret 请直接输入真实换行，例如：
 
@@ -93,6 +102,8 @@ FULIBA_COOKIES="first-cookie\nsecond-cookie"
 | `FULIBA_BASE_URL` | `https://www.wnflb2023.com` | 福利吧 HTTPS 基础地址 |
 | `CHECKIN_TIMEOUT_SECONDS` | `20` | 单次 HTTP 请求超时秒数 |
 | `CHECKIN_RETRIES` | `2` | 连接、超时和适当 5xx 响应的重试次数 |
+| `CHECKIN_NOTIFY_CHANNEL` | `auto` | 通知渠道选择；两者都有时 `auto` 优先钉钉 |
+| `CHECKIN_NOTIFY_MODE` | `summary` | `summary` 汇总，或 `individual` 逐账号通知 |
 
 基础地址只接受 HTTPS，且不能包含账号信息、查询参数、片段或额外路径。携带 Cookie 的请求遇到跨主机或降级到 HTTP 的重定向时会直接失败。
 
@@ -112,7 +123,18 @@ FULIBA_COOKIES="first-cookie\nsecond-cookie"
 3. 将完整 Webhook 保存为 `FEISHU_WEBHOOK`。
 4. 将签名校验密钥保存为 `FEISHU_SECRET`。
 
-每次完整签到运行只向每个已启用渠道发送一条汇总。一个渠道失败不会阻止另一个渠道，但最终退出码会标记失败。
+默认每次运行向自动选中的一个渠道发送一条汇总。将 `CHECKIN_NOTIFY_MODE` 设为 `individual` 可改为每个账号单独发送；将 `CHECKIN_NOTIFY_CHANNEL` 设为 `all` 可同时启用两个渠道。一个渠道失败不会阻止另一个渠道，但最终退出码会标记失败。
+
+## 每日两次执行与去重
+
+- 第一次计划时间为北京时间 01:30，第二次为 08:30。
+- 每次计划触发后随机等待 0–30 分钟，因此实际开始窗口分别约为 01:30–02:00 和 08:30–09:00。
+- 第一次运行后只保存站点和匿名账号编号，不保存 Cookie、用户名或通知凭据。
+- 成功、今日已签到或明确的非暂时性错误会被标记为当日终态，第二次运行直接跳过。
+- 超时、连接失败等暂时性网络问题不会标记为终态，第二次运行会重试对应账号。
+- 手动触发不读取定时任务状态，因此始终按选择的站点执行，便于排障。
+
+当第二次运行发现所有账号都已有终态时，会正常退出且不重复通知。跨运行状态通过按日期隔离的 GitHub Actions Cache 保存，不包含任何账号凭据。
 
 ## 退出码
 
@@ -156,4 +178,3 @@ python -m pytest --cov=checkin_tools --cov-report=term-missing
 ## License
 
 [MIT](LICENSE)
-

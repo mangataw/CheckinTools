@@ -23,6 +23,8 @@ def test_load_complete_multiline_config():
     assert config.timeout_seconds == 3.5
     assert config.retries == 4
     assert config.dingtalk and config.feishu
+    assert config.notify_channel == "auto"
+    assert config.notify_mode == "summary"
     assert "cookie-a" in config.secrets()
 
 
@@ -80,3 +82,30 @@ def test_rejects_invalid_http_settings(key, value):
     with pytest.raises(ConfigError):
         load_config({key: value}, load_local_dotenv=False)
 
+
+@pytest.mark.parametrize(
+    ("key", "value", "message"),
+    [
+        ("CHECKIN_NOTIFY_CHANNEL", "unknown", "must be auto"),
+        ("CHECKIN_NOTIFY_MODE", "batch", "must be summary"),
+        ("CHECKIN_NOTIFY_CHANNEL", "dingtalk", "not configured"),
+        ("CHECKIN_NOTIFY_CHANNEL", "feishu", "not configured"),
+    ],
+)
+def test_rejects_invalid_notification_routing(key, value, message):
+    with pytest.raises(ConfigError, match=message):
+        load_config({key: value}, load_local_dotenv=False)
+
+
+def test_loads_explicit_notification_routing():
+    config = load_config(
+        {
+            "DINGTALK_ACCESS_TOKEN": "token",
+            "DINGTALK_SECRET": "secret",
+            "CHECKIN_NOTIFY_CHANNEL": "dingtalk",
+            "CHECKIN_NOTIFY_MODE": "individual",
+        },
+        load_local_dotenv=False,
+    )
+    assert config.notify_channel == "dingtalk"
+    assert config.notify_mode == "individual"

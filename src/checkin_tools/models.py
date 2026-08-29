@@ -19,6 +19,7 @@ class CheckinResult:
     status: ResultStatus
     summary: str
     duration_seconds: float
+    retryable: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,12 +33,15 @@ class NotificationResult:
 class RunReport:
     results: list[CheckinResult] = field(default_factory=list)
     notifications: list[NotificationResult] = field(default_factory=list)
+    skipped_accounts: int = 0
 
     def count(self, status: ResultStatus) -> int:
         return sum(result.status is status for result in self.results)
 
     @property
     def exit_code(self) -> int:
+        if not self.results and self.skipped_accounts:
+            return 0
         if not self.results:
             return 2
         if self.count(ResultStatus.FAILED) or any(
@@ -45,4 +49,3 @@ class RunReport:
         ):
             return 1
         return 0
-

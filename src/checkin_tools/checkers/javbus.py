@@ -37,6 +37,7 @@ class JavBusChecker(Checker):
 
     def check(self, account: str, account_label: str) -> CheckinResult:
         started = time.monotonic()
+        retryable = False
         try:
             session = self.client.new_session()
             session.headers.update({"Cookie": account})
@@ -44,13 +45,18 @@ class JavBusChecker(Checker):
             return self._parse(response.text, account_label, started)
         except requests.Timeout:
             summary = "request timed out"
+            retryable = True
         except UnsafeRedirectError:
             summary = "unsafe cross-host or non-HTTPS redirect blocked"
         except requests.RequestException:
             summary = "network request failed"
+            retryable = True
         except Exception as exc:
             summary = f"unexpected checker error: {sanitize_text(exc, self._secrets)}"
-        return self._result(account_label, ResultStatus.FAILED, summary, started)
+            retryable = False
+        return self._result(
+            account_label, ResultStatus.FAILED, summary, started, retryable=retryable
+        )
 
     def _parse(self, html: str, account_label: str, started: float) -> CheckinResult:
         if not any(marker in html for marker in _DAILY_MARKERS):
@@ -91,8 +97,19 @@ class JavBusChecker(Checker):
         return self._result(account_label, status, summary, started)
 
     def _result(
-        self, account_label: str, status: ResultStatus, summary: str, started: float
+        self,
+        account_label: str,
+        status: ResultStatus,
+        summary: str,
+        started: float,
+        *,
+        retryable: bool = False,
     ) -> CheckinResult:
         return CheckinResult(
-            self.site, account_label, status, summary, max(0.0, time.monotonic() - started)
+            self.site,
+            account_label,
+            status,
+            summary,
+            max(0.0, time.monotonic() - started),
+            retryable,
         )

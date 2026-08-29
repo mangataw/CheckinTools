@@ -83,6 +83,23 @@ def test_site_selection_and_unknown_site():
     assert Runner([checker]).run("missing").exit_code == 2
 
 
+def test_runner_skips_terminal_accounts_without_turning_run_into_failure():
+    checker = FakeChecker(("ok", "ok"))
+    report = Runner([checker], terminal_accounts={"fake:account-1", "fake:account-2"}).run()
+    assert not report.results
+    assert report.skipped_accounts == 2
+    assert report.exit_code == 0
+
+
+def test_individual_notification_mode_sends_one_message_per_result():
+    notifier = FakeNotifier()
+    report = Runner(
+        [FakeChecker(("ok", "ok"))], [notifier], notification_mode="individual"
+    ).run()
+    assert notifier.calls == 2
+    assert len(report.notifications) == 2
+
+
 def test_registries_reject_duplicates():
     import pytest
 

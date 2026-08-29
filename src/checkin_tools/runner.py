@@ -20,10 +20,14 @@ class Runner:
         checkers: Iterable[Checker],
         notifiers: Iterable[Notifier] = (),
         secrets: tuple[str, ...] = (),
+        notification_mode: str = "summary",
+        terminal_accounts: set[str] | None = None,
     ) -> None:
         self.checkers = checker_map(checkers)
         self.notifiers = list(notifiers)
         self.secrets = secrets
+        self.notification_mode = notification_mode
+        self.terminal_accounts = terminal_accounts or set()
 
     def run(self, site: str = "all", *, notify: bool = True) -> RunReport:
         selected = list(self.checkers.values()) if site == "all" else [self.checkers.get(site)]
@@ -32,6 +36,13 @@ class Runner:
         for checker in selected:
             for index, account in enumerate(checker.accounts, start=1):
                 label = f"account-{index}"
+                account_key = f"{checker.site}:{label}"
+                if account_key in self.terminal_accounts:
+                    report.skipped_accounts += 1
+                    LOGGER.info(
+                        "%s %s skipped: terminal result already recorded", checker.site, label
+                    )
+                    continue
                 started = time.monotonic()
                 try:
                     result = checker.check(account, label)
@@ -48,15 +59,21 @@ class Runner:
 
         if notify and report.results:
             for notifier in self.notifiers:
-                try:
-                    notifier.send(report)
-                    report.notifications.append(
-                        NotificationResult(notifier.channel, True, "notification sent")
-                    )
-                except Exception as exc:  # isolation boundary for channels
-                    summary = sanitize_text(exc, self.secrets)
-                    report.notifications.append(
-                        NotificationResult(notifier.channel, False, summary)
-                    )
-                    LOGGER.error("%s notification failed: %s", notifier.channel, summary)
+                reports = (
+                    [RunReport(results=[result]) for result in report.results]
+                    if self.notification_mode == "individual"
+                    else [report]
+                )
+                for notification_report in reports:
+                    try:
+                        notifier.send(notification_report)
+                        report.notifications.append(
+                            NotificationResult(notifier.channel, True, "notification sent")
+                        )
+                    except Exception as exc:  # isolation boundary for channels
+                        summary = sanitize_text(exc, self.secrets)
+                        report.notifications.append(
+                            NotificationResult(notifier.channel, False, summary)
+                        )
+                        LOGGER.error("%s notification failed: %s", notifier.channel, summary)
         return report

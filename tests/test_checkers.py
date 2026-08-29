@@ -97,6 +97,7 @@ def test_javbus_sanitizes_request_failures(error, summary):
     assert result.status is ResultStatus.FAILED
     assert summary in result.summary
     assert "private" not in result.summary
+    assert result.retryable is not isinstance(error, UnsafeRedirectError)
 
 
 def test_javbus_uses_independent_sessions():
@@ -178,4 +179,4 @@ def test_fuliba_sanitizes_network_errors(error, summary):
     assert result.status is ResultStatus.FAILED
     assert summary in result.summary
     assert "private" not in result.summary
-
+    assert result.retryable
