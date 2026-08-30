@@ -7,6 +7,7 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 
 - JavBus 论坛每日登录积分
 - 福利吧签到
+- V2EX 每日登录奖励
 - 钉钉自定义群机器人通知
 - 飞书自定义群机器人通知
 - 多账号、失败隔离、每日两次执行与状态去重
@@ -26,6 +27,8 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 | `JAVBUS_COOKIES` | JavBus，每行一个账号 Cookie |
 | `FULIBA_USERNAMES` | 福利吧用户名，每行一个 |
 | `FULIBA_COOKIES` | 福利吧 Cookie，与用户名按行对应 |
+| `V2EX_USERNAMES` | V2EX 用户名，每行一个 |
+| `V2EX_COOKIES` | V2EX 完整 Cookie，与用户名按行对应 |
 | `DINGTALK_ACCESS_TOKEN` | 可选，钉钉 Webhook 中 `access_token=` 后的值 |
 | `DINGTALK_SECRET` | 可选，钉钉加签密钥 |
 | `FEISHU_WEBHOOK` | 可选，飞书完整 HTTPS Webhook |
@@ -70,6 +73,7 @@ python -m checkin_tools validate-config
 python -m checkin_tools run --site all
 python -m checkin_tools run --site javbus
 python -m checkin_tools run --site fuliba
+python -m checkin_tools run --site v2ex
 python -m checkin_tools run --site all --no-notify
 python -m checkin_tools notify-test --channel dingtalk
 ```
@@ -80,6 +84,8 @@ python -m checkin_tools notify-test --channel dingtalk
 JAVBUS_COOKIES="first-cookie\nsecond-cookie"
 FULIBA_USERNAMES="first-user\nsecond-user"
 FULIBA_COOKIES="first-cookie\nsecond-cookie"
+V2EX_USERNAMES='first-user\nsecond-user'
+V2EX_COOKIES='first-cookie\nsecond-cookie'
 ```
 
 ## 定时执行
@@ -91,6 +97,7 @@ Actions 的计划任务还可能受平台负载影响而进一步延迟。
 
 - [JavBus 使用细则与 Cookie 获取](docs/javbus.md)
 - [福利吧使用细则与 Cookie 获取](docs/fuliba.md)
+- [V2EX 使用细则与 Cookie 获取](docs/v2ex.md)
 - [钉钉与飞书通知配置](docs/notifications.md)
 - [定时去重、安全与开发说明](docs/automation-and-development.md)
 

@@ -21,6 +21,12 @@ class FulibaAccount:
 
 
 @dataclass(frozen=True, slots=True)
+class V2exAccount:
+    username: str
+    cookie: str
+
+
+@dataclass(frozen=True, slots=True)
 class DingTalkConfig:
     access_token: str
     secret: str
@@ -36,8 +42,10 @@ class FeishuConfig:
 class AppConfig:
     javbus_cookies: tuple[str, ...]
     fuliba_accounts: tuple[FulibaAccount, ...]
+    v2ex_accounts: tuple[V2exAccount, ...]
     javbus_base_url: str
     fuliba_base_url: str
+    v2ex_base_url: str
     timeout_seconds: float
     retries: int
     dingtalk: DingTalkConfig | None
@@ -48,6 +56,8 @@ class AppConfig:
     def secrets(self) -> tuple[str, ...]:
         values = [*self.javbus_cookies]
         for account in self.fuliba_accounts:
+            values.extend((account.username, account.cookie))
+        for account in self.v2ex_accounts:
             values.extend((account.username, account.cookie))
         if self.dingtalk:
             values.extend((self.dingtalk.access_token, self.dingtalk.secret))
@@ -95,6 +105,11 @@ def load_config(
     fuliba_cookies = _lines(environ.get("FULIBA_COOKIES"))
     if len(usernames) != len(fuliba_cookies):
         raise ConfigError("FULIBA_USERNAMES and FULIBA_COOKIES must have the same line count")
+
+    v2ex_usernames = _lines(environ.get("V2EX_USERNAMES"))
+    v2ex_cookies = _lines(environ.get("V2EX_COOKIES"))
+    if len(v2ex_usernames) != len(v2ex_cookies):
+        raise ConfigError("V2EX_USERNAMES and V2EX_COOKIES must have the same line count")
 
     try:
         timeout = float(environ.get("CHECKIN_TIMEOUT_SECONDS", "20"))
@@ -146,11 +161,18 @@ def load_config(
             FulibaAccount(username, cookie)
             for username, cookie in zip(usernames, fuliba_cookies, strict=True)
         ),
+        v2ex_accounts=tuple(
+            V2exAccount(username, cookie)
+            for username, cookie in zip(v2ex_usernames, v2ex_cookies, strict=True)
+        ),
         javbus_base_url=validate_base_url(
             environ.get("JAVBUS_BASE_URL", "https://www.javbus.com"), "JAVBUS_BASE_URL"
         ),
         fuliba_base_url=validate_base_url(
             environ.get("FULIBA_BASE_URL", "https://www.wnflb2023.com"), "FULIBA_BASE_URL"
+        ),
+        v2ex_base_url=validate_base_url(
+            environ.get("V2EX_BASE_URL", "https://www.v2ex.com"), "V2EX_BASE_URL"
         ),
         timeout_seconds=timeout,
         retries=retries,

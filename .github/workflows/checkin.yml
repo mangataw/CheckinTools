@@ -15,6 +15,7 @@ on:
           - all
           - javbus
           - fuliba
+          - v2ex
 
 permissions:
   contents: read
@@ -64,6 +65,8 @@ jobs:
           JAVBUS_COOKIES: ${{ secrets.JAVBUS_COOKIES }}
           FULIBA_USERNAMES: ${{ secrets.FULIBA_USERNAMES }}
           FULIBA_COOKIES: ${{ secrets.FULIBA_COOKIES }}
+          V2EX_USERNAMES: ${{ secrets.V2EX_USERNAMES }}
+          V2EX_COOKIES: ${{ secrets.V2EX_COOKIES }}
           DINGTALK_ACCESS_TOKEN: ${{ secrets.DINGTALK_ACCESS_TOKEN }}
           DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}

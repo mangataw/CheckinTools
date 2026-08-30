@@ -8,7 +8,8 @@ import requests
 
 from checkin_tools.checkers.fuliba import FulibaChecker
 from checkin_tools.checkers.javbus import JavBusChecker
-from checkin_tools.config import FulibaAccount, load_config
+from checkin_tools.checkers.v2ex import V2exChecker
+from checkin_tools.config import FulibaAccount, V2exAccount, load_config
 from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.models import ResultStatus
 
@@ -52,8 +53,11 @@ def config(**values):
         "JAVBUS_COOKIES": "cookie-one\ncookie-two",
         "FULIBA_USERNAMES": "example-user",
         "FULIBA_COOKIES": "cookie-three",
+        "V2EX_USERNAMES": "example-user",
+        "V2EX_COOKIES": "cookie-four",
         "JAVBUS_BASE_URL": "https://example.com",
         "FULIBA_BASE_URL": "https://example.com",
+        "V2EX_BASE_URL": "https://example.com",
     }
     defaults.update(values)
     return load_config(defaults, load_local_dotenv=False)
@@ -199,3 +203,82 @@ def test_fuliba_sanitizes_network_errors(error, summary):
     assert summary in result.summary
     assert "private" not in result.summary
     assert result.retryable
+
+
+def test_v2ex_success_and_post_request_confirmation():
+    client = FakeClient(
+        [fixture("v2ex_ready.html"), fixture("v2ex_redeemed.html"), fixture("v2ex_done.html")]
+    )
+    checker = V2exChecker(config(), client)
+    result = checker.check(V2exAccount("example-user", "private-cookie"), "account-1")
+    assert result.status is ResultStatus.SUCCESS
+    assert "42 coins" in result.summary
+    assert "private-cookie" not in result.summary
+    assert not client.responses
+    assert client.sessions[0].headers["Cookie"] == "private-cookie"
+    assert client.sessions[0].headers["Referer"].endswith("/mission/daily")
+
+
+def test_v2ex_already_done_does_not_redeem():
+    client = FakeClient([fixture("v2ex_done.html")])
+    result = V2exChecker(config(), client).check(
+        V2exAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.ALREADY_DONE
+    assert not client.responses
+
+
+def test_v2ex_rejects_invalid_or_mismatched_login():
+    for page, username in (("v2ex_invalid.html", "example-user"), ("v2ex_ready.html", "other")):
+        result = V2exChecker(config(), FakeClient([fixture(page)])).check(
+            V2exAccount(username, "cookie"), "account-1"
+        )
+        assert result.status is ResultStatus.FAILED
+        assert username not in result.summary
+
+
+def test_v2ex_detects_structure_change_and_unconfirmed_result():
+    missing_link = fixture("v2ex_ready.html").replace("/mission/daily/redeem", "/changed")
+    result = V2exChecker(config(), FakeClient([missing_link])).check(
+        V2exAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.FAILED
+    assert "structure changed" in result.summary
+
+    client = FakeClient(
+        [fixture("v2ex_ready.html"), fixture("v2ex_redeemed.html"), fixture("v2ex_ready.html")]
+    )
+    result = V2exChecker(config(), client).check(
+        V2exAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.FAILED
+    assert "did not confirm" in result.summary
+
+
+def test_v2ex_blocks_external_redeem_link():
+    html = fixture("v2ex_ready.html").replace(
+        "/mission/daily/redeem?once=123456", "https://evil.example/mission/daily/redeem?once=123456"
+    )
+    result = V2exChecker(config(), FakeClient([html])).check(
+        V2exAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.FAILED
+    assert "blocked" in result.summary
+
+
+@pytest.mark.parametrize(
+    ("error", "summary"),
+    [
+        (requests.Timeout("private"), "timed out"),
+        (requests.ConnectionError("private"), "network request failed"),
+        (UnsafeRedirectError("private"), "blocked"),
+    ],
+)
+def test_v2ex_sanitizes_request_failures(error, summary):
+    result = V2exChecker(config(), FakeClient([error])).check(
+        V2exAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.FAILED
+    assert summary in result.summary
+    assert "private" not in result.summary
+    assert result.retryable is not isinstance(error, UnsafeRedirectError)

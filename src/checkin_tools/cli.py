@@ -16,7 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("validate-config")
     run = commands.add_parser("run")
-    run.add_argument("--site", choices=("all", "javbus", "fuliba"), default="all")
+    run.add_argument("--site", choices=("all", "javbus", "fuliba", "v2ex"), default="all")
     run.add_argument("--no-notify", action="store_true")
     run.add_argument("--state-file")
     run.add_argument("--state-date")

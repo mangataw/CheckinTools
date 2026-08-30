@@ -22,6 +22,8 @@ def test_ci_never_references_checkin_or_notification_secrets():
         "JAVBUS_COOKIES",
         "FULIBA_USERNAMES",
         "FULIBA_COOKIES",
+        "V2EX_USERNAMES",
+        "V2EX_COOKIES",
         "DINGTALK_ACCESS_TOKEN",
         "FEISHU_WEBHOOK",
     ):
@@ -37,5 +39,7 @@ def test_checkin_schedule_and_manual_sites_are_present():
     assert "--state-file .checkin-state.json" in contents
     assert "checkin-state-${{ env.CHECKIN_DATE }}-" in contents
     assert "workflow_dispatch:" in contents
-    assert all(f"- {site}" in contents for site in ("all", "javbus", "fuliba"))
+    assert all(f"- {site}" in contents for site in ("all", "javbus", "fuliba", "v2ex"))
+    assert "V2EX_USERNAMES: ${{ secrets.V2EX_USERNAMES }}" in contents
+    assert "V2EX_COOKIES: ${{ secrets.V2EX_COOKIES }}" in contents
     assert "contents: read" in contents

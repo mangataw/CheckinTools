@@ -44,6 +44,8 @@ def test_valid_but_empty_config_returns_2(monkeypatch):
         "JAVBUS_COOKIES",
         "FULIBA_USERNAMES",
         "FULIBA_COOKIES",
+        "V2EX_USERNAMES",
+        "V2EX_COOKIES",
         "DINGTALK_ACCESS_TOKEN",
         "DINGTALK_SECRET",
         "FEISHU_WEBHOOK",
@@ -57,6 +59,7 @@ def test_valid_but_empty_config_returns_2(monkeypatch):
 def test_parser_supports_documented_commands():
     parser = cli.build_parser()
     assert parser.parse_args(["run", "--site", "javbus", "--no-notify"]).site == "javbus"
+    assert parser.parse_args(["run", "--site", "v2ex", "--no-notify"]).site == "v2ex"
     assert parser.parse_args(["notify-test", "--channel", "feishu"]).channel == "feishu"
 
 

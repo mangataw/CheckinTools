@@ -9,6 +9,8 @@ def test_load_complete_multiline_config():
             "JAVBUS_COOKIES": " one \\n two\n",
             "FULIBA_USERNAMES": "alice\nbob",
             "FULIBA_COOKIES": "cookie-a\ncookie-b",
+            "V2EX_USERNAMES": "carol\ndave",
+            "V2EX_COOKIES": "cookie-c\ncookie-d",
             "DINGTALK_ACCESS_TOKEN": "token",
             "DINGTALK_SECRET": "secret",
             "FEISHU_WEBHOOK": "https://open.feishu.cn/open-apis/bot/v2/hook/example",
@@ -20,12 +22,14 @@ def test_load_complete_multiline_config():
     )
     assert config.javbus_cookies == ("one", "two")
     assert [account.username for account in config.fuliba_accounts] == ["alice", "bob"]
+    assert [account.username for account in config.v2ex_accounts] == ["carol", "dave"]
     assert config.timeout_seconds == 3.5
     assert config.retries == 4
     assert config.dingtalk and config.feishu
     assert config.notify_channel == "auto"
     assert config.notify_mode == "summary"
     assert "cookie-a" in config.secrets()
+    assert "cookie-c" in config.secrets()
 
 
 @pytest.mark.parametrize(
@@ -51,6 +55,14 @@ def test_rejects_mismatched_fuliba_accounts():
     with pytest.raises(ConfigError, match="same line count"):
         load_config(
             {"FULIBA_USERNAMES": "one\ntwo", "FULIBA_COOKIES": "cookie"},
+            load_local_dotenv=False,
+        )
+
+
+def test_rejects_mismatched_v2ex_accounts():
+    with pytest.raises(ConfigError, match="same line count"):
+        load_config(
+            {"V2EX_USERNAMES": "one\ntwo", "V2EX_COOKIES": "cookie"},
             load_local_dotenv=False,
         )
 
