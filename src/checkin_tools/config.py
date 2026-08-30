@@ -107,6 +107,15 @@ def load_config(
     dingtalk_values = _paired_channel(
         environ, "DINGTALK_ACCESS_TOKEN", "DINGTALK_SECRET", "DingTalk"
     )
+    if dingtalk_values:
+        access_token = dingtalk_values[0]
+        if (
+            access_token.lower().startswith(("http://", "https://"))
+            or "access_token=" in access_token
+        ):
+            raise ConfigError(
+                "DINGTALK_ACCESS_TOKEN must contain only the value after access_token="
+            )
     feishu_values = _paired_channel(environ, "FEISHU_WEBHOOK", "FEISHU_SECRET", "Feishu")
     if feishu_values:
         parsed_webhook = urlsplit(feishu_values[0])

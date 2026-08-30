@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -18,6 +19,14 @@ from checkin_tools.security import sanitize_text
 _CREDIT_LOG_PATH = "/forum/home.php?mod=spacecp&ac=credit&op=log&suboperation=creditrulelog"
 _DAILY_MARKERS = ("每天登录", "每天登錄")
 _ALREADY_MARKERS = ("今日已签到", "今天已签到", "今日已簽到")
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+}
 
 
 class JavBusChecker(Checker):
@@ -29,6 +38,7 @@ class JavBusChecker(Checker):
         self.client = client or SafeHttpClient(
             config.javbus_base_url, config.timeout_seconds, config.retries
         )
+        self._referer = f"{config.javbus_base_url}/forum/home.php?mod=spacecp"
         self._secrets = config.secrets()
 
     @property
@@ -40,7 +50,9 @@ class JavBusChecker(Checker):
         retryable = False
         try:
             session = self.client.new_session()
-            session.headers.update({"Cookie": account})
+            session.headers.update(
+                {**_BROWSER_HEADERS, "Referer": self._referer, "Cookie": account}
+            )
             response = self.client.get(session, _CREDIT_LOG_PATH)
             return self._parse(response.text, account_label, started)
         except requests.Timeout:
@@ -86,13 +98,19 @@ class JavBusChecker(Checker):
                 "daily-login record did not confirm today's check-in",
                 started,
             )
+        timestamp = re.search(
+            rf"{re.escape(today)}(?:\s+\d{{1,2}}:\d{{2}}(?::\d{{2}})?)?", last_checkin
+        )
+        confirmed_at = timestamp.group(0) if timestamp else today
         status = (
             ResultStatus.ALREADY_DONE
             if any(marker in html for marker in _ALREADY_MARKERS)
             else ResultStatus.SUCCESS
         )
         summary = (
-            "already checked in today" if status is ResultStatus.ALREADY_DONE else "checked in"
+            f"already checked in today (last check-in: {confirmed_at})"
+            if status is ResultStatus.ALREADY_DONE
+            else f"checked in (last check-in: {confirmed_at})"
         )
         return self._result(account_label, status, summary, started)
 

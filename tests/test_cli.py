@@ -1,6 +1,20 @@
+import os
+
+import pytest
+
 from checkin_tools import cli
+from checkin_tools.config import load_config
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
+
+
+@pytest.fixture(autouse=True)
+def isolate_cli_tests_from_local_dotenv(monkeypatch):
+    monkeypatch.setattr(
+        cli,
+        "load_config",
+        lambda: load_config(os.environ, load_local_dotenv=False),
+    )
 
 
 class CliChecker(Checker):

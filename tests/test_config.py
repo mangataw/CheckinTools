@@ -70,6 +70,24 @@ def test_rejects_partial_notification_config(values):
 
 
 @pytest.mark.parametrize(
+    "access_token",
+    [
+        "https://oapi.dingtalk.com/robot/send?access_token=token",
+        "access_token=token",
+    ],
+)
+def test_rejects_dingtalk_webhook_instead_of_access_token(access_token):
+    with pytest.raises(ConfigError, match="only the value after access_token="):
+        load_config(
+            {
+                "DINGTALK_ACCESS_TOKEN": access_token,
+                "DINGTALK_SECRET": "secret",
+            },
+            load_local_dotenv=False,
+        )
+
+
+@pytest.mark.parametrize(
     ("key", "value"),
     [
         ("CHECKIN_TIMEOUT_SECONDS", "zero"),

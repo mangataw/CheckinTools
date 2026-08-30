@@ -15,7 +15,13 @@ from checkin_tools.models import CheckinResult, ResultStatus
 from checkin_tools.security import sanitize_text
 
 _HOME_PATH = "/forum.php?mobile=no"
-_SIGNED_MARKERS = ("今日已签到", "今天已签到", "今日已簽到")
+_SIGNED_MARKERS = (
+    "今日已签到",
+    "今天已签到",
+    "今日已簽到",
+    "签到成功",
+    "簽到成功",
+)
 
 
 class FulibaChecker(Checker):
@@ -94,10 +100,12 @@ class FulibaChecker(Checker):
         profile = soup.find("a", title="访问我的空间")
         username = profile.get_text(strip=True) if profile else None
         tip_node = soup.select_one("div.tip_c")
+        checkin_node = soup.select_one("#fx_checkin_menut")
         credit_node = soup.select_one("#extcreditmenu")
         tip = tip_node.get_text(" ", strip=True) if tip_node else ""
+        checkin = checkin_node.get_text(" ", strip=True) if checkin_node else ""
         credit = credit_node.get_text(" ", strip=True) if credit_node else ""
-        signed = any(marker in tip for marker in _SIGNED_MARKERS)
+        signed = any(marker in f"{tip} {checkin}" for marker in _SIGNED_MARKERS)
         return username, tip, credit, signed
 
     def _checkin_path(self, html: str) -> str:

@@ -73,6 +73,10 @@ def test_javbus_page_states(page, expected):
     assert result.status is expected
     assert result.account == "account-1"
     assert "private-cookie" not in result.summary
+    if expected is not ResultStatus.FAILED:
+        today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+        expected_time = "00:30" if page == "javbus_already.html" else "01:00"
+        assert f"last check-in: {today} {expected_time}" in result.summary
 
 
 def test_javbus_rejects_stale_or_changed_record():
@@ -108,6 +112,8 @@ def test_javbus_uses_independent_sessions():
     assert len(client.sessions) == 2
     assert client.sessions[0] is not client.sessions[1]
     assert client.sessions[0].headers["Cookie"] == "cookie-one"
+    assert client.sessions[0].headers["User-Agent"].startswith("Mozilla/5.0")
+    assert client.sessions[0].headers["Referer"].startswith("https://example.com/")
 
 
 def test_fuliba_success_and_post_request_confirmation():
@@ -122,6 +128,19 @@ def test_fuliba_success_and_post_request_confirmation():
 
 def test_fuliba_already_done_does_not_request_link():
     client = FakeClient([fixture("fuliba_done.html")])
+    result = FulibaChecker(config(), client).check(
+        FulibaAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.ALREADY_DONE
+    assert not client.responses
+
+
+def test_fuliba_recognizes_current_success_message():
+    html = fixture("fuliba_ready.html").replace(
+        "</body>",
+        '<div id="fx_checkin_menut" class="item"><em>签到成功!</em></div></body>',
+    )
+    client = FakeClient([html])
     result = FulibaChecker(config(), client).check(
         FulibaAccount("example-user", "cookie"), "account-1"
     )

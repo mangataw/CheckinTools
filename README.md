@@ -26,7 +26,7 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，支持�
 | `JAVBUS_COOKIES` | JavBus 必需 | 每行一个账号 Cookie |
 | `FULIBA_USERNAMES` | 福利吧必需 | 每行一个用户名 |
 | `FULIBA_COOKIES` | 福利吧必需 | 每行一个 Cookie，顺序和数量必须与用户名一致 |
-| `DINGTALK_ACCESS_TOKEN` | 钉钉通知必需 | 自定义机器人 Access Token |
+| `DINGTALK_ACCESS_TOKEN` | 钉钉通知必需 | Webhook 中 `access_token=` 后的值，不是完整 URL |
 | `DINGTALK_SECRET` | 钉钉通知必需 | 自定义机器人加签 Secret |
 | `FEISHU_WEBHOOK` | 飞书通知必需 | 自定义机器人完整 HTTPS Webhook |
 | `FEISHU_SECRET` | 飞书通知必需 | 自定义机器人签名校验 Secret |
@@ -145,6 +145,10 @@ FULIBA_COOKIES="first-cookie\nsecond-cookie"
 | `2` | 配置无效、请求的渠道未配置或没有可运行站点 |
 
 单账号、单站点或单通知渠道失败不会中止其他任务。
+
+福利吧会区分首次签到和重复进入：进入首页时已出现签到成功标记则返回“今日已签到”，
+不会重复调用签到接口；否则调用签到接口，并以签到成功标记或积分变化确认本次成功。
+JavBus 以“每天登录”积分记录的北京时间日期确认成功，并在日志中记录最后签到时间。
 
 ## Cookie 更新与故障排查
 
