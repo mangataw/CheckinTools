@@ -127,6 +127,10 @@ def test_fuliba_success_and_post_request_confirmation():
     checker = FulibaChecker(config(), client)
     result = checker.check(FulibaAccount("example-user", "cookie"), "account-1")
     assert result.status is ResultStatus.SUCCESS
+    assert "daily status marker" in result.summary
+    assert "check-in tip changed" in result.summary
+    assert "credit changed" in result.summary
+    assert "credit=积分: 11" in result.summary
     assert not client.responses
 
 
@@ -139,16 +143,16 @@ def test_fuliba_already_done_does_not_request_link():
     assert not client.responses
 
 
-def test_fuliba_recognizes_current_success_message():
+def test_fuliba_ignores_static_success_dialog_and_performs_checkin():
     html = fixture("fuliba_ready.html").replace(
         "</body>",
         '<div id="fx_checkin_menut" class="item"><em>签到成功!</em></div></body>',
     )
-    client = FakeClient([html])
+    client = FakeClient([html, "ignored", fixture("fuliba_done.html")])
     result = FulibaChecker(config(), client).check(
         FulibaAccount("example-user", "cookie"), "account-1"
     )
-    assert result.status is ResultStatus.ALREADY_DONE
+    assert result.status is ResultStatus.SUCCESS
     assert not client.responses
 
 
@@ -175,6 +179,8 @@ def test_fuliba_detects_structure_change_and_unconfirmed_result():
     )
     assert result.status is ResultStatus.FAILED
     assert "did not confirm" in result.summary
+    assert "tip unchanged" in result.summary
+    assert "credit unchanged" in result.summary
 
 
 def test_fuliba_blocks_external_checkin_link():

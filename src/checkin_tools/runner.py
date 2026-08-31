@@ -40,7 +40,9 @@ class Runner:
                 if account_key in self.terminal_accounts:
                     report.skipped_accounts += 1
                     LOGGER.info(
-                        "%s %s skipped: terminal result already recorded", checker.site, label
+                        "%s %s skipped: a successful result was already recorded today",
+                        checker.site,
+                        label,
                     )
                     continue
                 started = time.monotonic()

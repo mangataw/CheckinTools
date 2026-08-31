@@ -6,7 +6,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from checkin_tools.models import RunReport
+from checkin_tools.models import ResultStatus, RunReport
+
+_STATE_VERSION = 2
 
 
 class StateError(ValueError):
@@ -22,7 +24,7 @@ class DailyState:
         self.terminal_accounts.update(
             f"{result.site}:{result.account}"
             for result in report.results
-            if not result.retryable
+            if result.status in {ResultStatus.SUCCESS, ResultStatus.ALREADY_DONE}
         )
 
 
@@ -32,7 +34,7 @@ def load_daily_state(path: str | Path, date: str) -> DailyState:
         return DailyState(date)
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
-        if payload.get("date") != date:
+        if payload.get("version") != _STATE_VERSION or payload.get("date") != date:
             return DailyState(date)
         accounts = payload.get("terminal_accounts", [])
         if not isinstance(accounts, list) or not all(isinstance(item, str) for item in accounts):
@@ -47,6 +49,7 @@ def save_daily_state(path: str | Path, state: DailyState) -> None:
     state_path.write_text(
         json.dumps(
             {
+                "version": _STATE_VERSION,
                 "date": state.date,
                 "terminal_accounts": sorted(state.terminal_accounts),
             },
