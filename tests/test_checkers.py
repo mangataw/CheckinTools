@@ -19,7 +19,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def fixture(name):
     value = (FIXTURES / name).read_text(encoding="utf-8")
     today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
-    return value.replace("2026-08-29", today)
+    return value.replace("2026-08-29", today).replace("20260829", today.replace("-", ""))
 
 
 class FakeSession:
@@ -213,12 +213,20 @@ def test_fuliba_sanitizes_network_errors(error, summary):
 
 def test_v2ex_success_and_post_request_confirmation():
     client = FakeClient(
-        [fixture("v2ex_ready.html"), fixture("v2ex_redeemed.html"), fixture("v2ex_done.html")]
+        [
+            fixture("v2ex_ready.html"),
+            fixture("v2ex_redeemed.html"),
+            fixture("v2ex_done.html"),
+            fixture("v2ex_balance_today.html"),
+        ]
     )
     checker = V2exChecker(config(), client)
     result = checker.check(V2exAccount("example-user", "private-cookie"), "account-1")
     assert result.status is ResultStatus.SUCCESS
-    assert "42 coins" in result.summary
+    assert "reward=42 coins" in result.summary
+    assert "total=1234.0" in result.summary
+    assert "08:57:43 +08:00" in result.summary
+    assert "streak=已连续登录 9 天" in result.summary
     assert "private-cookie" not in result.summary
     assert not client.responses
     assert client.sessions[0].headers["Cookie"] == "private-cookie"
@@ -226,11 +234,30 @@ def test_v2ex_success_and_post_request_confirmation():
 
 
 def test_v2ex_already_done_does_not_redeem():
-    client = FakeClient([fixture("v2ex_done.html")])
+    client = FakeClient([fixture("v2ex_done.html"), fixture("v2ex_balance_today.html")])
     result = V2exChecker(config(), client).check(
         V2exAccount("example-user", "cookie"), "account-1"
     )
     assert result.status is ResultStatus.ALREADY_DONE
+    assert not client.responses
+
+
+def test_v2ex_uses_button_target_instead_of_unscoped_claimed_text():
+    pending = fixture("v2ex_ready.html").replace(
+        "</body>", '<script>const staleCopy = "每日登录奖励已领取";</script></body>'
+    )
+    client = FakeClient(
+        [
+            pending,
+            fixture("v2ex_redeemed.html"),
+            fixture("v2ex_done.html"),
+            fixture("v2ex_balance_today.html"),
+        ]
+    )
+    result = V2exChecker(config(), client).check(
+        V2exAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.SUCCESS
     assert not client.responses
 
 
@@ -258,7 +285,18 @@ def test_v2ex_detects_structure_change_and_unconfirmed_result():
         V2exAccount("example-user", "cookie"), "account-1"
     )
     assert result.status is ResultStatus.FAILED
-    assert "did not confirm" in result.summary
+    assert "did not change to balance" in result.summary
+
+
+def test_v2ex_requires_today_reward_in_balance_ledger():
+    old_balance = fixture("v2ex_balance_today.html").replace(
+        datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d"), "20000101"
+    )
+    result = V2exChecker(
+        config(), FakeClient([fixture("v2ex_done.html"), old_balance])
+    ).check(V2exAccount("example-user", "cookie"), "account-1")
+    assert result.status is ResultStatus.FAILED
+    assert "no daily reward entry for today" in result.summary
 
 
 def test_v2ex_blocks_external_redeem_link():
