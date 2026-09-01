@@ -33,9 +33,9 @@ def test_ci_never_references_checkin_or_notification_secrets():
 
 def test_checkin_schedule_and_manual_sites_are_present():
     contents = workflow("checkin.yml")
-    assert 'cron: "30 17 * * *"' in contents
-    assert 'cron: "30 0 * * *"' in contents
-    assert "RANDOM % 1801" in contents
+    assert 'cron: "0 1 * * *"' in contents
+    assert 'cron: "0 6 * * *"' in contents
+    assert "RANDOM" not in contents
     assert "--state-file .checkin-state.json" in contents
     assert "checkin-state-${{ env.CHECKIN_DATE }}-" in contents
     assert "workflow_dispatch:" in contents

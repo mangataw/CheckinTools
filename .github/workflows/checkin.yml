@@ -2,8 +2,9 @@ name: Daily check-in
 
 on:
   schedule:
-    - cron: "30 17 * * *"
-    - cron: "30 0 * * *"
+    # GitHub cron uses UTC: 01:00/06:00 = 09:00/14:00 Asia/Shanghai.
+    - cron: "0 1 * * *"
+    - cron: "0 6 * * *"
   workflow_dispatch:
     inputs:
       site:
@@ -37,13 +38,6 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Apply randomized schedule delay
-        if: github.event_name == 'schedule'
-        shell: bash
-        run: |
-          delay_seconds=$((RANDOM % 1801))
-          echo "Delaying scheduled check-in by ${delay_seconds} seconds"
-          sleep "${delay_seconds}"
       - name: Prepare daily state key
         if: github.event_name == 'schedule'
         shell: bash

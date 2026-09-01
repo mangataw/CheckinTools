@@ -6,8 +6,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -89,9 +88,10 @@ class V2exChecker(Checker):
                     started,
                 )
             LOGGER.info(
-                "%s %s pre-check: action=%s; streak=%s",
+                "%s %s pre-check: service_date=%s; action=%s; streak=%s",
                 self.site,
                 account_label,
+                self._service_date(),
                 before.action,
                 before.streak or "<absent>",
             )
@@ -105,7 +105,7 @@ class V2exChecker(Checker):
                         account_label,
                         ResultStatus.FAILED,
                         "mission page indicates claimed but balance page has no daily reward "
-                        "entry for today",
+                        "entry for the current V2EX UTC day",
                         started,
                     )
                 return self._result(
@@ -149,7 +149,8 @@ class V2exChecker(Checker):
                 return self._result(
                     account_label,
                     ResultStatus.FAILED,
-                    "balance page did not confirm a daily reward entry for today",
+                    "balance page did not confirm a daily reward entry for the current "
+                    "V2EX UTC day",
                     started,
                 )
             LOGGER.info(
@@ -203,7 +204,7 @@ class V2exChecker(Checker):
 
     @staticmethod
     def _today_balance_entry(html: str) -> _BalanceEntry | None:
-        today = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d")
+        service_date = V2exChecker._service_date()
         soup = BeautifulSoup(html, "html.parser")
         for row in soup.select("table.data tr"):
             cells = row.select("td.d")
@@ -211,13 +212,18 @@ class V2exChecker(Checker):
                 continue
             description = cells[4].get_text(" ", strip=True)
             match = _LEDGER_REWARD_PATTERN.search(description)
-            if match and match.group("date") == today:
+            if match and match.group("date") == service_date:
                 return _BalanceEntry(
                     cells[0].get_text(" ", strip=True),
                     match.group("reward"),
                     cells[3].get_text(" ", strip=True),
                 )
         return None
+
+    @staticmethod
+    def _service_date() -> str:
+        """Return the calendar day used by V2EX daily missions (UTC)."""
+        return datetime.now(UTC).strftime("%Y%m%d")
 
     @staticmethod
     def _summary(message: str, entry: _BalanceEntry, streak: str) -> str:

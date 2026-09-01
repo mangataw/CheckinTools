@@ -302,15 +302,28 @@ def test_v2ex_detects_structure_change_and_unconfirmed_result():
     assert "did not change to balance" in result.summary
 
 
-def test_v2ex_requires_today_reward_in_balance_ledger():
-    old_balance = fixture("v2ex_balance_today.html").replace(
-        datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d"), "20000101"
-    )
+def test_v2ex_requires_current_utc_day_reward_in_balance_ledger(monkeypatch):
+    monkeypatch.setattr(V2exChecker, "_service_date", staticmethod(lambda: "20000101"))
+    old_balance = fixture("v2ex_balance_today.html")
     result = V2exChecker(
         config(), FakeClient([fixture("v2ex_done.html"), old_balance])
     ).check(V2exAccount("example-user", "cookie"), "account-1")
     assert result.status is ResultStatus.FAILED
-    assert "no daily reward entry for today" in result.summary
+    assert "current V2EX UTC day" in result.summary
+
+
+def test_v2ex_uses_utc_service_date_for_balance_confirmation(monkeypatch):
+    service_date = "20000101"
+    monkeypatch.setattr(V2exChecker, "_service_date", staticmethod(lambda: service_date))
+    balance = fixture("v2ex_balance_today.html").replace(
+        datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d"), service_date
+    )
+    client = FakeClient([fixture("v2ex_done.html"), balance])
+    result = V2exChecker(config(), client).check(
+        V2exAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.ALREADY_DONE
+    assert "reward=42 coins" in result.summary
 
 
 def test_v2ex_blocks_external_redeem_link():
