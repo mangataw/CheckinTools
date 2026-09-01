@@ -143,6 +143,20 @@ def test_fuliba_already_done_does_not_request_link():
     assert not client.responses
 
 
+def test_fuliba_recognizes_live_ranked_checkin_tip():
+    html = fixture("fuliba_ready.html").replace(
+        "连续签到 2 天", "您今日第1494个签到,已连续签到7天,累计签到1578天!"
+    )
+    client = FakeClient([html])
+    result = FulibaChecker(config(), client).check(
+        FulibaAccount("example-user", "cookie"), "account-1"
+    )
+    assert result.status is ResultStatus.ALREADY_DONE
+    assert "already checked in today" in result.summary
+    assert "今日第1494个签到" in result.summary
+    assert not client.responses
+
+
 def test_fuliba_ignores_static_success_dialog_and_performs_checkin():
     html = fixture("fuliba_ready.html").replace(
         "</body>",

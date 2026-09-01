@@ -22,6 +22,7 @@ _SIGNED_MARKERS = (
     "今天已签到",
     "今日已簽到",
 )
+_SIGNED_RANK_PATTERN = re.compile(r"(?:您)?今日第\s*\d+\s*(?:个|個)签到")
 
 LOGGER = logging.getLogger(__name__)
 
@@ -142,7 +143,9 @@ class FulibaChecker(Checker):
         credit_node = soup.select_one("#extcreditmenu")
         tip = tip_node.get_text(" ", strip=True) if tip_node else ""
         credit = credit_node.get_text(" ", strip=True) if credit_node else ""
-        signed = any(marker in tip for marker in _SIGNED_MARKERS)
+        signed = any(marker in tip for marker in _SIGNED_MARKERS) or bool(
+            _SIGNED_RANK_PATTERN.search(tip)
+        )
         return _AccountState(username, tip, credit, signed)
 
     @staticmethod
