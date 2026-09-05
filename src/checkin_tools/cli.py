@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from collections.abc import Mapping
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -32,10 +33,19 @@ def _components(config, notification_selection=None):
     return build_checkers(config), build_notifiers(config, notification_selection)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    *,
+    environ: Mapping[str, str] | None = None,
+    load_local_dotenv: bool = True,
+) -> int:
     args = build_parser().parse_args(argv)
     try:
-        config = load_config()
+        config = (
+            load_config()
+            if environ is None and load_local_dotenv
+            else load_config(environ, load_local_dotenv=load_local_dotenv)
+        )
     except ConfigError as exc:
         configure_logging()
         logging.error("invalid configuration: %s", exc)

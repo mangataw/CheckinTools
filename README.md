@@ -12,6 +12,12 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 - 飞书自定义群机器人通知
 - 多账号、失败隔离、每日两次执行与状态去重
 
+## 青龙平台
+
+青龙 Docker 可直接订阅本仓库，由 `qinglong_checkin.py` 的 cron 元数据创建签到任务。
+首次运行自动在 `/ql/data/config/checkin-tools.env` 生成带注释的集中配置模板。
+参阅 [青龙使用教程](docs/qinglong.md)。原 Actions/本地 CLI 配置及调度不变。
+
 ## GitHub Actions 使用
 
 1. Fork 或复制本仓库。包含真实凭据时建议使用私有仓库。
