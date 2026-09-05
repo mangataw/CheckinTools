@@ -16,14 +16,15 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 
 青龙 Docker 可直接订阅本仓库，由 `qinglong_checkin.py` 的 cron 元数据创建签到任务。
 首次运行自动在 `/ql/data/config/checkin-tools.env` 生成带注释的集中配置模板。
-在青龙「订阅管理 → 新建订阅」中可粘贴以下整行命令一键导入：
+在青龙「订阅管理 → 新建订阅」中可粘贴以下整行命令导入仓库参数：
 
 ```text
 ql repo "https://github.com/mangataw/CheckinTools.git" "qinglong_checkin.py" "" "src" "main" "py"
 ```
 
 把命令粘贴到新建订阅弹窗的「名称」输入框，待仓库参数自动展开后，将名称填为
-`CheckinTools`，再填写订阅更新定时规则并保存。
+`CheckinTools`，将订阅更新定时规则填为 `15 3 * * *`，确认开启「自动添加任务」后
+保存。`ql repo` 命令本身不支持携带这两个面板字段。
 
 参阅 [青龙使用教程](docs/qinglong.md)。原 Actions/本地 CLI 配置及调度不变。
 
