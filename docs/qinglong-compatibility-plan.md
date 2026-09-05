@@ -16,16 +16,16 @@ qinglong/
        ├─ checkin_task_javbus.py       # cron 30 0,8 * * *
        ├─ checkin_task_fuliba.py       # cron 30 0,8 * * *
        ├─ checkin_task_v2ex.py         # cron 30 0,8 * * *
-       ├─ checkin_task_base.py         # 公共运行逻辑，无任务元数据
-       └─ checkin_task_setup.py        # 配置及依赖初始化，无任务元数据
+       ├─ checkin_base.py              # 公共运行逻辑，不匹配任务白名单
+       └─ checkin_setup.py             # 配置及依赖初始化，不匹配任务白名单
 ```
 
-订阅白名单只需 `checkin_task_`；公共文件虽被下载，但不会创建任务。黑名单和依赖文件均可
-留空。
+订阅白名单精确匹配三个站点入口，依赖文件匹配 `checkin_base.py|checkin_setup.py|src`。
+不能依靠公共文件缺少 cron 元数据来阻止任务创建，因为青龙会为白名单匹配文件补默认定时。
 
 ## 2. 配置生命周期
 
-订阅完成钩子调用 `checkin_task_setup.py`。它以排他方式将公开模板首次复制到
+订阅完成钩子调用 `checkin_setup.py`。它先以排他方式将公开模板首次复制到
 `/ql/data/config/checkin-tools.env`，并通过 `pip install -e` 安装项目声明的依赖。用户编辑
 的是青龙持久化配置目录中的副本，仓库更新只刷新模板，不覆盖真实配置。
 

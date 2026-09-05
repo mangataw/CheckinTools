@@ -1,19 +1,19 @@
 # 青龙 Docker 使用教程
 
-本项目按青龙仓库订阅的常见目录组织任务：`qinglong/DefaultTasks` 中所有相关文件都使用
-`checkin_task_` 前缀。订阅只需填写这个前缀，不必逐个列出脚本。
+本项目按青龙仓库订阅的常见目录组织任务。三个站点入口使用 `checkin_task_` 前缀，公共
+运行与初始化文件使用 `checkin_` 前缀，避免青龙把公共文件注册成定时任务。
 
 订阅完成后，「定时任务」应出现三个独立任务：JavBus、福利吧、V2EX。三个任务默认都在
 青龙容器当地时间每天 `00:30` 和 `08:30` 运行。公共文件
-`checkin_task_base.py` 没有 cron 元数据，因此不会生成第四个任务。
-`checkin_task_setup.py` 也不是定时任务，它只在订阅完成后初始化配置并安装依赖。
+`checkin_base.py` 由三个任务共同调用。`checkin_setup.py` 只在订阅完成后初始化配置并安装
+依赖；两者都不匹配任务白名单。
 
 ## 1. 创建订阅
 
 在青龙「订阅管理 → 新建订阅」最上面的名称输入框粘贴：
 
 ```text
-ql repo https://github.com/mangataw/CheckinTools.git "checkin_task_"
+ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_(javbus|fuliba|v2ex)[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py"
 ```
 
 这条命令用于自动展开仓库地址和白名单。新版青龙仍需在图形界面补充名称、订阅更新计划
@@ -27,11 +27,11 @@ ql repo https://github.com/mangataw/CheckinTools.git "checkin_task_"
 | 分支 | `main` |
 | 定时类型 | `crontab` |
 | 定时规则 | `15 3 * * *` |
-| 白名单 | `checkin_task_` |
+| 白名单 | 与上方命令的第 2 个参数相同 |
 | 黑名单 | 留空 |
-| 依赖文件 | 留空 |
+| 依赖文件 | 与上方命令的第 4 个参数相同 |
 | 文件后缀 | `py` |
-| 执行后 | `python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_task_setup.py` |
+| 执行后 | `python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_setup.py` |
 | 自动添加任务 | 开启 |
 | 自动删除任务 | 开启 |
 
@@ -41,7 +41,7 @@ ql repo https://github.com/mangataw/CheckinTools.git "checkin_task_"
 「执行后」填写一行：
 
 ```sh
-python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_task_setup.py
+python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_setup.py
 ```
 
 `mangataw_CheckinTools_main` 是通常生成的订阅唯一值。如果面板显示的「唯一值」不同，请只
@@ -61,9 +61,11 @@ python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_t
 
 ## 3. 黑白名单与目录
 
-- 白名单只填 `checkin_task_`，它会选中三个任务入口、公共运行文件和初始化文件。
-- 黑名单留空。两个公共文件都没有 `cron`/`new Env`，青龙不会把它们注册成任务。
-- 依赖文件留空。公共文件已经被同一个白名单选中，无需重复声明。
+- 白名单精确匹配 `checkin_task_javbus.py`、`checkin_task_fuliba.py` 和
+  `checkin_task_v2ex.py`，因此青龙只会创建三个定时任务。
+- 黑名单留空，因为白名单已经排除了公共文件。
+- 依赖文件填写 `checkin_base.py|checkin_setup.py|src`，让三个任务和执行后钩子仍能使用公共
+  代码及原项目源码。
 - 文件后缀填 `py`，让青龙扫描 Python 任务。
 
 这种形式参考 BiliBiliToolPro 的 `qinglong/DefaultTasks` 和统一任务前缀做法，同时保留
@@ -100,7 +102,7 @@ python-dotenv
 requests
 ```
 
-通常不再需要在青龙依赖管理中逐个添加。青龙 Docker 内的 Python 需要 3.12 或更高版本，
+通常不再需要在青龙依赖管理中逐个添加。青龙 Docker 内的 Python 需要 3.10 或更高版本，
 可在容器内运行 `python3 --version` 检查。自动安装失败时，订阅日志会保留完整 pip 错误。
 
 ## 6. 运行、状态与迁移
@@ -121,7 +123,8 @@ JavBus 和福利吧按北京时间判断。
 
 常见问题：
 
-- 仍只有一个任务：检查白名单是否已经改为 `checkin_task_`，并开启自动添加任务。
+- 出现 base/setup 任务：使用第 1 节的精确白名单，重新运行订阅；若旧任务未被自动删除，
+  在定时任务中手动删除这两个旧条目。
 - 没有配置文件：检查订阅日志中的执行后命令和订阅唯一值目录。
 - 提示缺包：重新运行订阅并检查“执行后”的 pip 日志。
 - 某站点提示未配置：填写该站点参数，或禁用该站点任务。

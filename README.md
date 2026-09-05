@@ -20,13 +20,13 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 在青龙「订阅管理 → 新建订阅」中可粘贴以下整行命令导入仓库参数：
 
 ```text
-ql repo https://github.com/mangataw/CheckinTools.git "checkin_task_"
+ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_(javbus|fuliba|v2ex)[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py"
 ```
 
 把命令粘贴到新建订阅弹窗的「名称」输入框，待仓库参数自动展开后，将名称填为
-`CheckinTools`，订阅更新定时规则填为 `15 3 * * *`，文件后缀填 `py`，黑名单和依赖
-文件留空。「执行后」的非定时初始化脚本会首次创建集中配置，并自动安装项目声明的 Python
-依赖；具体命令及唯一值路径见详细教程。
+`CheckinTools`，订阅更新定时规则填为 `15 3 * * *`，文件后缀填 `py`。「执行后」的
+非定时初始化脚本会首次创建集中配置，并自动安装项目声明的 Python 依赖；具体字段和唯一值
+路径见详细教程。
 
 参阅 [青龙使用教程](docs/qinglong.md)。原 Actions/本地 CLI 配置及调度不变。
 
@@ -64,7 +64,7 @@ ql repo https://github.com/mangataw/CheckinTools.git "checkin_task_"
 
 ## 本地使用
 
-需要 Python 3.12 或更高版本。
+需要 Python 3.10 或更高版本。
 
 Windows PowerShell：
 

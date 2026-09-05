@@ -6,7 +6,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import requests
 from bs4 import BeautifulSoup
@@ -223,7 +223,7 @@ class V2exChecker(Checker):
     @staticmethod
     def _service_date() -> str:
         """Return the calendar day used by V2EX daily missions (UTC)."""
-        return datetime.now(UTC).strftime("%Y%m%d")
+        return datetime.now(timezone.utc).strftime("%Y%m%d")
 
     @staticmethod
     def _summary(message: str, entry: _BalanceEntry, streak: str) -> str:

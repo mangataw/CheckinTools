@@ -6,7 +6,7 @@ import os
 import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -86,8 +86,8 @@ def _site_is_configured(site: str, settings: Mapping[str, str]) -> bool:
 
 
 def _state_date(site: str, now: datetime | None = None) -> str:
-    now = now or datetime.now(UTC)
-    zone = UTC if site == "v2ex" else ZoneInfo("Asia/Shanghai")
+    now = now or datetime.now(timezone.utc)
+    zone = timezone.utc if site == "v2ex" else ZoneInfo("Asia/Shanghai")
     return now.astimezone(zone).date().isoformat()
 
 

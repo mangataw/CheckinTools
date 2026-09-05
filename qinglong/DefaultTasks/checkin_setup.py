@@ -47,12 +47,9 @@ def install_project(repo_root: Path = REPO_ROOT) -> int:
 
 
 def main() -> int:
-    # This standalone bootstrap runs before pip can enforce pyproject.toml.
-    if sys.version_info < (3, 12):  # noqa: UP036
-        print("CheckinTools 需要 Python 3.12 或更高版本。", file=sys.stderr)
-        return 2
     old_umask = os.umask(0o077)
     try:
+        # Always create the editable config before dependency installation can fail.
         ensure_config()
         code = install_project()
         if code:

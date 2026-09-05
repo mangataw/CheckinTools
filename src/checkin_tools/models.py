@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
+
+try:
+    from enum import StrEnum
+except ImportError:  # pragma: no cover - exercised on Python 3.10
+    class StrEnum(str, Enum):
+        """Python 3.10 compatibility for enum.StrEnum."""
 
 
 class ResultStatus(StrEnum):
