@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
@@ -20,6 +20,12 @@ def fixture(name):
     value = (FIXTURES / name).read_text(encoding="utf-8")
     today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
     return value.replace("2026-08-29", today).replace("20260829", today.replace("-", ""))
+
+
+def v2ex_fixture(name):
+    value = (FIXTURES / name).read_text(encoding="utf-8")
+    service_date = datetime.now(UTC).strftime("%Y%m%d")
+    return value.replace("2026-08-29", service_date).replace("20260829", service_date)
 
 
 class FakeSession:
@@ -231,7 +237,7 @@ def test_v2ex_success_and_post_request_confirmation():
             fixture("v2ex_ready.html"),
             fixture("v2ex_redeemed.html"),
             fixture("v2ex_done.html"),
-            fixture("v2ex_balance_today.html"),
+            v2ex_fixture("v2ex_balance_today.html"),
         ]
     )
     checker = V2exChecker(config(), client)
@@ -248,7 +254,7 @@ def test_v2ex_success_and_post_request_confirmation():
 
 
 def test_v2ex_already_done_does_not_redeem():
-    client = FakeClient([fixture("v2ex_done.html"), fixture("v2ex_balance_today.html")])
+    client = FakeClient([fixture("v2ex_done.html"), v2ex_fixture("v2ex_balance_today.html")])
     result = V2exChecker(config(), client).check(
         V2exAccount("example-user", "cookie"), "account-1"
     )
@@ -265,7 +271,7 @@ def test_v2ex_uses_button_target_instead_of_unscoped_claimed_text():
             pending,
             fixture("v2ex_redeemed.html"),
             fixture("v2ex_done.html"),
-            fixture("v2ex_balance_today.html"),
+            v2ex_fixture("v2ex_balance_today.html"),
         ]
     )
     result = V2exChecker(config(), client).check(
@@ -304,7 +310,7 @@ def test_v2ex_detects_structure_change_and_unconfirmed_result():
 
 def test_v2ex_requires_current_utc_day_reward_in_balance_ledger(monkeypatch):
     monkeypatch.setattr(V2exChecker, "_service_date", staticmethod(lambda: "20000101"))
-    old_balance = fixture("v2ex_balance_today.html")
+    old_balance = v2ex_fixture("v2ex_balance_today.html")
     result = V2exChecker(
         config(), FakeClient([fixture("v2ex_done.html"), old_balance])
     ).check(V2exAccount("example-user", "cookie"), "account-1")
@@ -315,8 +321,8 @@ def test_v2ex_requires_current_utc_day_reward_in_balance_ledger(monkeypatch):
 def test_v2ex_uses_utc_service_date_for_balance_confirmation(monkeypatch):
     service_date = "20000101"
     monkeypatch.setattr(V2exChecker, "_service_date", staticmethod(lambda: service_date))
-    balance = fixture("v2ex_balance_today.html").replace(
-        datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d"), service_date
+    balance = v2ex_fixture("v2ex_balance_today.html").replace(
+        datetime.now(UTC).strftime("%Y%m%d"), service_date
     )
     client = FakeClient([fixture("v2ex_done.html"), balance])
     result = V2exChecker(config(), client).check(
