@@ -1,39 +1,23 @@
 # 青龙 Docker 使用教程
 
-本项目采用青龙原生仓库订阅方式。顶层脚本 `qinglong_checkin.py` 使用与
-`mangataw/fubasing` 相同的文件头元数据：
+本项目按青龙仓库订阅的常见目录组织任务：`qinglong/DefaultTasks` 中所有相关文件都使用
+`checkin_task_` 前缀。订阅只需填写这个前缀，不必逐个列出脚本。
 
-```python
-"""
-cron: 30 0,8 * * *
-new Env('CheckinTools 每日签到');
-"""
-```
+订阅完成后，「定时任务」应出现三个独立任务：JavBus、福利吧、V2EX。三个任务默认都在
+青龙容器当地时间每天 `00:30` 和 `08:30` 运行。公共文件
+`checkin_task_base.py` 没有 cron 元数据，因此不会生成第四个任务。
+`checkin_task_setup.py` 也不是定时任务，它只在订阅完成后初始化配置并安装依赖。
 
-青龙拉取仓库后会据此创建每天 00:30、08:30 执行的任务，不需要申请应用密钥，
-也不需要调用青龙 API。运行日志和任务启停均由青龙面板管理。
+## 1. 创建订阅
 
-## 1. 用命令粘贴导入订阅
-
-复制下面完整的一行：
+在青龙「订阅管理 → 新建订阅」最上面的名称输入框粘贴：
 
 ```text
-ql repo "https://github.com/mangataw/CheckinTools.git" "qinglong_checkin.py" "" "src" "main" "py"
+ql repo https://github.com/mangataw/CheckinTools.git "checkin_task_"
 ```
 
-打开青龙面板的「订阅管理」，点击「新建订阅」，把整行命令粘贴到最上面的「名称」
-输入框。该输入框的占位提示通常是“支持拷贝 ql repo/raw 命令，粘贴导入”。青龙识别
-命令后会自动拆分并填好仓库地址、白名单、依赖文件、分支和文件后缀。
-
-`ql repo` 的格式不包含订阅名称和订阅定时规则，所以粘贴后还要填写这两个必填项：
-
-- 名称：`CheckinTools`
-- 定时规则：`15 3 * * *`，表示每天 03:15 更新一次仓库
-
-确认「自动添加任务」已开启，核对仓库地址和分支，然后保存并运行一次订阅。这样无需
-逐项录入仓库参数。
-
-截图所示新版面板的完整结果应为：
+这条命令用于自动展开仓库地址和白名单。新版青龙仍需在图形界面补充名称、订阅更新计划
+和执行后命令：
 
 | 输入框 | 填写值 |
 | --- | --- |
@@ -41,51 +25,74 @@ ql repo "https://github.com/mangataw/CheckinTools.git" "qinglong_checkin.py" "" 
 | 类型 | `公开仓库` |
 | 链接 | `https://github.com/mangataw/CheckinTools.git` |
 | 分支 | `main` |
-| 唯一值 | 面板自动生成 |
 | 定时类型 | `crontab` |
 | 定时规则 | `15 3 * * *` |
-| 白名单 | `qinglong_checkin.py` |
+| 白名单 | `checkin_task_` |
 | 黑名单 | 留空 |
-| 依赖文件 | `src` |
+| 依赖文件 | 留空 |
 | 文件后缀 | `py` |
+| 执行后 | `python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_task_setup.py` |
 | 自动添加任务 | 开启 |
+| 自动删除任务 | 开启 |
 
-这里的 `15 3 * * *` 只表示每天 03:15 拉取仓库更新。签到任务的执行时间来自
-`qinglong_checkin.py` 文件头中的 `30 0,8 * * *`，即每天 00:30 和 08:30。两者是
-不同的定时规则。
+「定时规则」是更新订阅的时间，不是签到时间。建议每天 03:15 更新仓库。签到时间由三个
+入口文件中的 `30 0,8 * * *` 决定。
 
-如果粘贴后「名称」仍显示整条命令，说明当前面板不支持命令解析。此时不要以整条命令
-作为名称保存，改为手动新建公开仓库订阅：
+「执行后」填写一行：
 
-| 配置项 | 内容 |
-| --- | --- |
-| 名称 | `CheckinTools` |
-| 仓库地址 | `https://github.com/mangataw/CheckinTools.git` |
-| 分支 | `main` |
-| 白名单 | `qinglong_checkin.py` |
-| 依赖文件 | `src` |
-| 文件后缀 | `py` |
-| 订阅定时 | 例如 `15 3 * * *`，只用于更新仓库 |
-
-不同青龙版本的字段名称可能略有差异。关键点是拉取 `qinglong_checkin.py`，同时保留
-`src/checkin_tools`。如果你的版本默认拉取完整仓库，依赖文件可以留空。
-
-保存后手动运行一次订阅。在「定时任务」中应自动出现 `CheckinTools 每日签到`。
-先保持该任务禁用，手动运行一次。首次运行会生成完整配置模板并提示路径，不会签到。
-
-也可以在青龙容器终端直接执行同一条命令完成导入：
-
-```bash
-ql repo "https://github.com/mangataw/CheckinTools.git" "qinglong_checkin.py" "" "src" "main" "py"
+```sh
+python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_task_setup.py
 ```
 
-`ql repo` 的六个参数依次是仓库地址、白名单、黑名单、依赖文件、分支和文件后缀，
-没有用于订阅定时规则的第七个参数。不同青龙版本的界面文字可能略有差异；无法解析
-整行命令时，按上表手动填写即可。
+`mangataw_CheckinTools_main` 是通常生成的订阅唯一值。如果面板显示的「唯一值」不同，请只
+替换命令中的这段目录名。保存后手动运行一次订阅。初始化脚本会完成两件事：
 
-## 2. 安装 Python 依赖
+1. 仅在缺失时复制 `/ql/data/config/checkin-tools.env`。
+2. 使用当前 `python3` 执行 `pip install -e`，自动安装项目及 `pyproject.toml` 声明的依赖。
 
-在青龙「依赖管理 → Python3」中添加：
+## 2. 配置文件为何不会被更新覆盖
+
+仓库中的 `qinglong/checkin-tools.env` 只是公开模板，每次更新订阅时可以正常刷新。
+初始化脚本使用排他创建，只在 `/ql/data/config/checkin-tools.env` 不存在时复制。因此你在
+青龙「配置文件」页面填写的 Cookie 和通知密钥不会被后续订阅覆盖。
+
+任务本身不会创建或改写配置文件。首次订阅成功后即可在青龙「配置文件」中打开
+`checkin-tools.env`，修改后直接运行三个签到任务。
+
+## 3. 黑白名单与目录
+
+- 白名单只填 `checkin_task_`，它会选中三个任务入口、公共运行文件和初始化文件。
+- 黑名单留空。两个公共文件都没有 `cron`/`new Env`，青龙不会把它们注册成任务。
+- 依赖文件留空。公共文件已经被同一个白名单选中，无需重复声明。
+- 文件后缀填 `py`，让青龙扫描 Python 任务。
+
+这种形式参考 BiliBiliToolPro 的 `qinglong/DefaultTasks` 和统一任务前缀做法，同时保留
+CheckinTools 现有 Python 包和三个站点的独立任务。
+
+## 4. 编辑账号配置
+
+没有使用的站点保持为空，并在「定时任务」中禁用对应任务。主要变量如下：
+
+| 变量 | 用途 |
+| --- | --- |
+| `JAVBUS_COOKIES` | JavBus Cookie |
+| `FULIBA_USERNAMES` / `FULIBA_COOKIES` | 福利吧用户名和 Cookie |
+| `V2EX_USERNAMES` / `V2EX_COOKIES` | V2EX 用户名和 Cookie |
+| `DINGTALK_ACCESS_TOKEN` / `DINGTALK_SECRET` | 可选钉钉通知，成对填写 |
+| `FEISHU_WEBHOOK` / `FEISHU_SECRET` | 可选飞书通知，成对填写 |
+
+多账号使用字面量 `\n` 分隔，用户名和 Cookie 必须逐项对应：
+
+```dotenv
+FULIBA_USERNAMES='user1\nuser2'
+FULIBA_COOKIES='cookie1\ncookie2'
+```
+
+配置文件是青龙任务的参数来源，不需要在面板中逐个创建环境变量。
+
+## 5. Python 依赖
+
+订阅执行后会自动安装项目声明的依赖，目前包括：
 
 ```text
 beautifulsoup4
@@ -93,62 +100,12 @@ python-dotenv
 requests
 ```
 
-青龙 Docker 内的 Python 必须为 3.12 或更高版本。可在容器终端检查：
+通常不再需要在青龙依赖管理中逐个添加。青龙 Docker 内的 Python 需要 3.12 或更高版本，
+可在容器内运行 `python3 --version` 检查。自动安装失败时，订阅日志会保留完整 pip 错误。
 
-```bash
-python3 --version
-```
+## 6. 运行、状态与迁移
 
-脚本直接使用青龙容器内的 Python 和依赖，不创建额外 venv，也不修改系统包。
-
-## 3. 编辑一个集中配置文件
-
-首次运行会创建：
-
-```text
-/ql/data/config/checkin-tools.env
-```
-
-文件带有全部参数、中文分区和填写示例，已存在时绝不覆盖。多数版本可以在青龙
-「配置文件」页面直接打开；如果面板没有列出自定义 `.env` 文件，可进入容器编辑该路径。
-文件位于 Docker 持久化的 `/ql/data` 中，仓库更新和容器重建不会覆盖。
-
-账号参数：
-
-| 变量 | 用途 |
-| --- | --- |
-| `JAVBUS_COOKIES` | JavBus Cookie，每行一个账号 |
-| `FULIBA_USERNAMES` | 福利吧用户名，每行一个 |
-| `FULIBA_COOKIES` | 福利吧 Cookie，与用户名逐行对应 |
-| `V2EX_USERNAMES` | V2EX 用户名，每行一个 |
-| `V2EX_COOKIES` | V2EX Cookie，与用户名逐行对应 |
-
-通知参数：
-
-| 变量 | 用途 |
-| --- | --- |
-| `DINGTALK_ACCESS_TOKEN` / `DINGTALK_SECRET` | 钉钉机器人，必须成对 |
-| `FEISHU_WEBHOOK` / `FEISHU_SECRET` | 飞书机器人，必须成对 |
-| `CHECKIN_NOTIFY_CHANNEL` | `auto`、`all`、`dingtalk`、`feishu` |
-| `CHECKIN_NOTIFY_MODE` | `summary` 或 `individual` |
-
-多账号在同一个值中使用字面量 `\n` 分隔，例如：
-
-```dotenv
-FULIBA_USERNAMES='user1\nuser2'
-FULIBA_COOKIES='cookie1\ncookie2'
-```
-
-用户名与 Cookie 必须逐行对应。Cookie 建议使用单引号，避免其中的双引号和符号被改变。
-文件存在后以文件内容为准，不再混合读取青龙面板环境变量或仓库 `.env`，避免两套配置冲突。
-如需改路径，只需在面板设置一个 `CHECKIN_QINGLONG_CONFIG=/绝对路径/config.env`。
-Cookie、用户名、Webhook 和密钥不要写进仓库或任务命令。
-
-## 4. 运行与状态
-
-手动运行 `CheckinTools 每日签到`，确认日志、签到结果和通知，再启用定时任务。
-
-脚本依次执行已配置的站点，一个站点失败不会阻止后续站点。状态文件存放在：
+三个任务分别保存状态：
 
 ```text
 /ql/data/checkin-tools/javbus-state.json
@@ -156,39 +113,18 @@ Cookie、用户名、Webhook 和密钥不要写进仓库或任务命令。
 /ql/data/checkin-tools/v2ex-state.json
 ```
 
-`/ql/data` 是青龙 Docker 的持久化目录。可以通过
-`CHECKIN_QINGLONG_DATA_DIR` 改为另一个绝对路径。
-脚本使用 Linux 文件锁避免同一任务重叠运行，锁冲突退出码为 3。
+每天 00:30 首次执行后，08:30 会重试失败账号并跳过已成功账号。V2EX 按 UTC 服务日判断，
+JavBus 和福利吧按北京时间判断。
 
-V2EX 按 UTC 日期保存状态，JavBus 和福利吧按北京时间保存状态。因此北京时间
-00:30 和 08:30 对 V2EX 属于两个不同服务日，不会被错误去重。
+如果旧订阅中只有 `CheckinTools 每日签到`，用第 1 节的参数修改并重新运行订阅。确认三个
+新任务出现后删除或禁用旧任务。已有的 `/ql/data/config/checkin-tools.env` 会被保留。
 
-| 退出码 | 含义 |
-| --- | --- |
-| 0 | 所有已配置站点成功、已签到或状态跳过 |
-| 1 | 至少一个站点签到或通知失败 |
-| 2 | 配置、依赖、目录或运行环境无效 |
-| 3 | 上一次 CheckinTools 青龙任务仍在运行 |
+常见问题：
 
-## 5. 自定义执行时间
-
-默认时间来自脚本头部的 `30 0,8 * * *`。青龙创建任务后，可以直接在面板修改该任务的
-cron。再次运行仓库订阅时，部分青龙版本可能按脚本元数据恢复默认时间；如需长期使用
-其他时间，可 Fork 仓库并修改 `qinglong_checkin.py` 顶部的 cron。
-
-仓库订阅自己的更新时间与签到时间是两件事。订阅任务只负责拉取更新，签到任务才访问站点。
-
-## 6. 更新和排障
-
-更新由青龙订阅任务完成。更新后先手动运行签到任务，确认再保持定时启用。
-
-- 提示缺少 `src`：订阅没有保留源码目录，把 `src` 加入依赖文件或改为拉取完整仓库。
-- `ModuleNotFoundError`：在 Python3 依赖管理安装上面的三个包。
-- Python 版本错误：当前项目要求 Python 3.12+，需要使用兼容的青龙镜像或解释器。
-- 没有生成任务：检查订阅白名单、py 文件后缀，以及脚本是否完整拉取。
-- 没有账号：编辑 `/ql/data/config/checkin-tools.env`，用户名与 Cookie 行数必须一致。
-- 配置文件没有显示：从容器终端编辑，或用 `CHECKIN_QINGLONG_CONFIG` 指向面板可编辑的文件。
-- 状态损坏：先备份对应站点状态文件，再删除该单个文件重建；不要清空整个 `/ql/data`。
-- 时间不对：检查青龙容器和面板时区；脚本不修改 Docker 或青龙全局时区。
+- 仍只有一个任务：检查白名单是否已经改为 `checkin_task_`，并开启自动添加任务。
+- 没有配置文件：检查订阅日志中的执行后命令和订阅唯一值目录。
+- 提示缺包：重新运行订阅并检查“执行后”的 pip 日志。
+- 某站点提示未配置：填写该站点参数，或禁用该站点任务。
+- 时间不符：检查青龙 Docker 的时区；任务 cron 使用容器当地时间。
 
 获取 Cookie 参阅 [JavBus](javbus.md)、[福利吧](fuliba.md) 和 [V2EX](v2ex.md)。

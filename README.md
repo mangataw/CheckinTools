@@ -14,17 +14,19 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 
 ## 青龙平台
 
-青龙 Docker 可直接订阅本仓库，由 `qinglong_checkin.py` 的 cron 元数据创建签到任务。
-首次运行自动在 `/ql/data/config/checkin-tools.env` 生成带注释的集中配置模板。
+青龙 Docker 可直接订阅本仓库，并分别创建 JavBus、福利吧和 V2EX 三个签到任务。
+三个任务默认在容器当地时间 00:30 和 08:30 执行。订阅执行后会在
+`/ql/data/config/checkin-tools.env` 首次初始化带注释的集中配置模板，后续更新不会覆盖。
 在青龙「订阅管理 → 新建订阅」中可粘贴以下整行命令导入仓库参数：
 
 ```text
-ql repo "https://github.com/mangataw/CheckinTools.git" "qinglong_checkin.py" "" "src" "main" "py"
+ql repo https://github.com/mangataw/CheckinTools.git "checkin_task_"
 ```
 
 把命令粘贴到新建订阅弹窗的「名称」输入框，待仓库参数自动展开后，将名称填为
-`CheckinTools`，将订阅更新定时规则填为 `15 3 * * *`，确认开启「自动添加任务」后
-保存。`ql repo` 命令本身不支持携带这两个面板字段。
+`CheckinTools`，订阅更新定时规则填为 `15 3 * * *`，文件后缀填 `py`，黑名单和依赖
+文件留空。「执行后」的非定时初始化脚本会首次创建集中配置，并自动安装项目声明的 Python
+依赖；具体命令及唯一值路径见详细教程。
 
 参阅 [青龙使用教程](docs/qinglong.md)。原 Actions/本地 CLI 配置及调度不变。
 

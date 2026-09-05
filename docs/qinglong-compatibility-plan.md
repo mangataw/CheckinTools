@@ -1,53 +1,49 @@
 # 青龙兼容实施计划
 
-状态：已按 Linux Docker 青龙的原生仓库订阅方式实施，本地验证完成，实机订阅待验证。
-使用方法见 [青龙 Docker 教程](qinglong.md)。
+状态：已在本地按 Linux Docker 青龙的仓库订阅方式重整，等待实机确认。
 
-## 1. 实施方向
+## 1. 规划修正
 
-参考 `mangataw/fubasing`：可执行 Python 文件在头部声明 `cron` 和 `new Env`，
-青龙订阅拉取仓库时识别元数据并创建定时任务。因此本项目不再重复实现青龙管理 API、
-应用授权、任务清单、导入器、安装器或另一套通知传输。
+先前方案把入口文件散放在仓库根目录，导致订阅命令必须逐个列出三个任务和多个依赖；又让
+运行脚本承担配置生成，造成订阅完成后配置文件仍不可见。这是部署规划问题。
+
+参考 BiliBiliToolPro 的青龙目录和统一文件前缀，改为：
 
 ```text
-青龙仓库订阅
-  └─ qinglong_checkin.py（cron 元数据、Linux 锁、各站点状态日期）
-       └─ src/checkin_tools（复用现有配置、Checker、Runner、Notifier）
+qinglong/
+  ├─ checkin-tools.env                 # 公开配置模板
+  └─ DefaultTasks/
+       ├─ checkin_task_javbus.py       # cron 30 0,8 * * *
+       ├─ checkin_task_fuliba.py       # cron 30 0,8 * * *
+       ├─ checkin_task_v2ex.py         # cron 30 0,8 * * *
+       ├─ checkin_task_base.py         # 公共运行逻辑，无任务元数据
+       └─ checkin_task_setup.py        # 配置及依赖初始化，无任务元数据
 ```
 
-## 2. 交付范围
+订阅白名单只需 `checkin_task_`；公共文件虽被下载，但不会创建任务。黑名单和依赖文件均可
+留空。
 
-- 顶层 `qinglong_checkin.py`，默认当地 00:30、08:30，由青龙直接发现。
-- 首次运行在 `/ql/data/config/checkin-tools.env` 创建完整注释模板，集中读取全部参数。
-- 配置文件参数名与现有 CLI/Actions 环境变量一致，不把秘密写入脚本或仓库。
-- 自动识别已配置的 JavBus、福利吧、V2EX，未配置站点不执行。
-- 每站点独立状态文件；V2EX 使用 UTC 服务日，其他站点使用北京时间。
-- Linux `flock` 防止同一入口重叠执行，锁冲突退出 3。
-- 默认数据放 `/ql/data/checkin-tools`，使用 Docker 持久化目录。
-- 青龙日志、任务启停、cron 修改和仓库更新由青龙原生能力负责。
-- 原 Actions 调度、CLI 参数、通知格式和环境变量行为保持兼容。
+## 2. 配置生命周期
 
-## 3. 非目标
+订阅完成钩子调用 `checkin_task_setup.py`。它以排他方式将公开模板首次复制到
+`/ql/data/config/checkin-tools.env`，并通过 `pip install -e` 安装项目声明的依赖。用户编辑
+的是青龙持久化配置目录中的副本，仓库更新只刷新模板，不覆盖真实配置。
 
-- 不调用青龙管理 API，不要求 client_id/client_secret。
-- 不维护第二套 TOML、任务数据库、导入清单、回滚事务、日志清理器或心跳服务。
-- 不要求逐个创建面板环境变量；仅自定义配置路径时使用一个可选变量。
-- 不自动安装或升级青龙全局 Python 依赖；用户通过青龙依赖管理安装。
-- 不跨 Actions 与青龙共享状态或做主备接管。
-- 不承诺所有历史青龙版本的订阅字段和复制目录布局完全一致。
+三个签到任务只读取配置。缺失时给出明确错误，不再把“生成配置”作为一次签到任务。
+
+## 3. 任务与原项目边界
+
+- 青龙创建 JavBus、福利吧、V2EX 三个独立任务，默认每天 00:30、08:30。
+- 每站点保留独立日志、启停、锁和状态文件。
+- 复用现有 `src/checkin_tools` Checker、Runner、Notifier，不复制业务逻辑。
+- 不调用青龙管理 API，不需要 client_id/client_secret。
+- 不修改 `.github/workflows`、GitHub Actions cron、原 CLI 参数或 Actions 配置方式。
 
 ## 4. 验收
 
-本地自动测试覆盖 cron 元数据、订阅源码路径、站点识别、各站点状态文件、
-V2EX UTC 边界、无账号/相对数据路径和锁冲突；完整旧测试继续回归。
+本地验证包括三个入口的 cron 元数据、公共文件不生成任务、统一订阅前缀、配置只复制一次、
+自动依赖安装命令、模板参数完整性、每站点状态与锁、完整原测试回归，以及
+`.github/workflows` 无本轮差异。
 
-Linux 青龙 Docker 实机仍需验证：
-
-1. 仓库订阅能生成 `CheckinTools 每日签到`。
-2. 白名单和依赖文件设置能保留 `src/checkin_tools`。
-3. Python 3.12+ 与三个依赖可用。
-4. 首次运行生成模板，配置文件页面或容器内可编辑，运行结果和通知正确。
-5. `/ql/data/checkin-tools` 在容器重启后仍保留。
-6. 00:30、08:30 两个计划时间和容器时区符合预期。
-
-在实机验证完成前，文档只说明实现方式，不宣称覆盖全部青龙版本。
+实机需要确认：一次订阅生成三个任务、执行后首次创建配置、再次更新不覆盖配置、三个任务
+在容器当地时间 00:30 和 08:30 执行。
