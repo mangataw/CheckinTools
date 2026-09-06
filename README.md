@@ -116,6 +116,7 @@ V2EX_COOKIES='first-cookie\nsecond-cookie'
 ## 详细文档
 
 - [项目架构与目录说明](docs/architecture.md)
+- [新增签到站点指南](docs/adding-a-site.md)
 - [JavBus 使用细则与 Cookie 获取](docs/javbus.md)
 - [福利吧使用细则与 Cookie 获取](docs/fuliba.md)
 - [V2EX 使用细则与 Cookie 获取](docs/v2ex.md)
