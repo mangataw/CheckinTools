@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from checkin_tools.models import CheckinResult, ResultStatus, RunReport
+from checkin_tools.models import CheckinResult, NotificationResult, ResultStatus, RunReport
 from checkin_tools.state import DailyState, StateError, load_daily_state, save_daily_state
 
 
@@ -44,6 +44,19 @@ def test_state_records_only_terminal_results_and_round_trips(tmp_path):
     payload = json.loads(path.read_text())
     assert payload["version"] == 2
     assert payload["date"] == "2026-08-29"
+
+
+def test_notification_failure_does_not_retry_a_successful_checkin():
+    state = DailyState("2026-08-29")
+    state.update(
+        RunReport(
+            results=[
+                CheckinResult("site", "account-1", ResultStatus.SUCCESS, "done", 0.1)
+            ],
+            notifications=[NotificationResult("dingtalk", False, "network failure")],
+        )
+    )
+    assert state.terminal_accounts == {"site:account-1"}
 
 
 @pytest.mark.parametrize(

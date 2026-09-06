@@ -6,9 +6,8 @@ import os
 import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 DEFAULT_CONFIG_FILE = Path("/ql/data/config/checkin-tools.env")
 SITES = {"javbus", "fuliba", "v2ex"}
@@ -86,9 +85,9 @@ def _site_is_configured(site: str, settings: Mapping[str, str]) -> bool:
 
 
 def _state_date(site: str, now: datetime | None = None) -> str:
-    now = now or datetime.now(timezone.utc)
-    zone = timezone.utc if site == "v2ex" else ZoneInfo("Asia/Shanghai")
-    return now.astimezone(zone).date().isoformat()
+    """Use Qinglong container local date consistently for every site."""
+    now = now or datetime.now().astimezone()
+    return now.date().isoformat()
 
 
 @contextmanager

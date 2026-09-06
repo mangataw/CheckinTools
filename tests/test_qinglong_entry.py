@@ -1,7 +1,7 @@
 import re
 import sys
 from contextlib import nullcontext
-from datetime import UTC, datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -109,14 +109,17 @@ def test_source_layout():
     checkin_base._add_source_path()
 
 
-def test_site_configuration_and_service_dates():
+def test_site_configuration_and_qinglong_local_dates():
     assert not checkin_base._site_is_configured("javbus", {})
     assert checkin_base._site_is_configured("javbus", {"JAVBUS_COOKIES": "a"})
     assert checkin_base._site_is_configured("fuliba", {"FULIBA_USERNAMES": "b"})
     assert checkin_base._site_is_configured("v2ex", {"V2EX_COOKIES": "c"})
-    now = datetime(2026, 9, 4, 16, 30, tzinfo=UTC)
-    assert checkin_base._state_date("v2ex", now) == "2026-09-04"
-    assert checkin_base._state_date("fuliba", now) == "2026-09-05"
+    local_zone = timezone(timedelta(hours=8))
+    first_run = datetime(2026, 9, 5, 0, 30, tzinfo=local_zone)
+    second_run = datetime(2026, 9, 5, 8, 30, tzinfo=local_zone)
+    for site in ("javbus", "fuliba", "v2ex"):
+        assert checkin_base._state_date(site, first_run) == "2026-09-05"
+        assert checkin_base._state_date(site, second_run) == "2026-09-05"
 
 
 def test_run_site_uses_its_own_state_and_lock(tmp_path, monkeypatch):
