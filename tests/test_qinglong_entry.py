@@ -57,7 +57,7 @@ def test_subscription_regex_selects_only_three_task_entries():
     assert selected == sorted(f"checkin_task_{site}.py" for site in SITE_IDS)
 
 
-def test_setup_is_not_a_task_and_copies_config_only_once(tmp_path):
+def test_setup_is_not_a_task_and_ensure_config_copies_only_once(tmp_path):
     source = Path(checkin_setup.__file__).read_text(encoding="utf-8")
     assert "new Env(" not in source
     assert "cron:" not in source
@@ -68,6 +68,23 @@ def test_setup_is_not_a_task_and_copies_config_only_once(tmp_path):
     template.write_text("VALUE='second'\n", encoding="utf-8")
     assert not checkin_setup.ensure_config(template, destination)
     assert destination.read_text(encoding="utf-8") == "VALUE='first'\n"
+
+
+def test_setup_adds_missing_config_without_changing_existing_values(tmp_path):
+    template = tmp_path / "template.env"
+    destination = tmp_path / "config.env"
+    template.write_text("COOKIE=''\nRETRIES='2'\nNEW_OPTION='default'\n", encoding="utf-8")
+    original = "# private configuration\nCOOKIE='private-value'\nRETRIES='5'\n"
+    destination.write_text(original, encoding="utf-8")
+
+    assert checkin_setup.merge_missing_config(template, destination) == ("NEW_OPTION",)
+    updated = destination.read_text(encoding="utf-8")
+    assert updated.startswith(original)
+    assert "COOKIE='private-value'" in updated
+    assert "RETRIES='5'" in updated
+    assert "NEW_OPTION='default'" in updated
+    assert checkin_setup.merge_missing_config(template, destination) == ()
+    assert destination.read_text(encoding="utf-8") == updated
 
 
 def test_setup_installs_repository_as_editable_package(tmp_path, monkeypatch):
@@ -82,7 +99,9 @@ def test_setup_installs_repository_as_editable_package(tmp_path, monkeypatch):
 
 def test_setup_creates_config_before_dependency_failure(monkeypatch):
     events = []
-    monkeypatch.setattr(checkin_setup, "ensure_config", lambda: events.append("config"))
+    monkeypatch.setattr(
+        checkin_setup, "ensure_config", lambda: events.append("config") or True
+    )
     monkeypatch.setattr(
         checkin_setup,
         "install_project",
@@ -90,6 +109,23 @@ def test_setup_creates_config_before_dependency_failure(monkeypatch):
     )
     assert checkin_setup.main() == 1
     assert events == ["config", "dependencies"]
+
+
+def test_setup_migrates_existing_config_before_install(monkeypatch):
+    events = []
+    monkeypatch.setattr(
+        checkin_setup, "ensure_config", lambda: events.append("config") or False
+    )
+    monkeypatch.setattr(
+        checkin_setup, "merge_missing_config", lambda: events.append("migration")
+    )
+    monkeypatch.setattr(
+        checkin_setup,
+        "install_project",
+        lambda: events.append("dependencies") or 0,
+    )
+    assert checkin_setup.main() == 0
+    assert events == ["config", "migration", "dependencies"]
 
 
 def test_template_keys_match_runtime_allowlist():
