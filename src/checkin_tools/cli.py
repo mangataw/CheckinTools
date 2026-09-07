@@ -41,11 +41,18 @@ def main(
     load_local_dotenv: bool = True,
 ) -> int:
     args = build_parser().parse_args(argv)
+    selected_site = (
+        args.site if args.command == "run" and args.site != "all" else None
+    )
     try:
         config = (
-            load_config()
+            load_config(selected_site=selected_site)
             if environ is None and load_local_dotenv
-            else load_config(environ, load_local_dotenv=load_local_dotenv)
+            else load_config(
+                environ,
+                load_local_dotenv=load_local_dotenv,
+                selected_site=selected_site,
+            )
         )
     except ConfigError as exc:
         configure_logging()

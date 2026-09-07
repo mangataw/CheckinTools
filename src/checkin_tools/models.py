@@ -26,6 +26,7 @@ class CheckinResult:
     summary: str
     duration_seconds: float
     retryable: bool = False
+    state_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

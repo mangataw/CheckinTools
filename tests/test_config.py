@@ -67,6 +67,38 @@ def test_rejects_mismatched_v2ex_accounts():
         )
 
 
+def test_selected_site_ignores_other_site_account_and_url_errors():
+    config = load_config(
+        {
+            "JAVBUS_COOKIES": "cookie",
+            "FULIBA_USERNAMES": "one\ntwo",
+            "FULIBA_COOKIES": "only-one",
+            "FULIBA_BASE_URL": "http://unsafe.example",
+            "V2EX_USERNAMES": "user",
+            "V2EX_BASE_URL": "also-invalid",
+        },
+        load_local_dotenv=False,
+        selected_site="javbus",
+    )
+    assert config.javbus_cookies == ("cookie",)
+    assert not config.fuliba_accounts
+    assert not config.v2ex_accounts
+
+
+def test_selected_site_still_validates_its_own_configuration():
+    with pytest.raises(ConfigError, match="same line count"):
+        load_config(
+            {"FULIBA_USERNAMES": "one\ntwo", "FULIBA_COOKIES": "only-one"},
+            load_local_dotenv=False,
+            selected_site="fuliba",
+        )
+
+
+def test_selected_site_rejects_unknown_site():
+    with pytest.raises(ConfigError, match="unknown site"):
+        load_config({}, load_local_dotenv=False, selected_site="unknown")
+
+
 @pytest.mark.parametrize(
     "values",
     [

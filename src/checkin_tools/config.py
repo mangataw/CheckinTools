@@ -107,20 +107,37 @@ def _paired_channel(
 
 
 def load_config(
-    environ: Mapping[str, str] | None = None, *, load_local_dotenv: bool = True
+    environ: Mapping[str, str] | None = None,
+    *,
+    load_local_dotenv: bool = True,
+    selected_site: str | None = None,
 ) -> AppConfig:
     if environ is None:
         if load_local_dotenv:
             load_dotenv()
         environ = os.environ
 
-    usernames = _lines(environ.get("FULIBA_USERNAMES"))
-    fuliba_cookies = _lines(environ.get("FULIBA_COOKIES"))
+    javbus = site_definition("javbus")
+    fuliba = site_definition("fuliba")
+    v2ex = site_definition("v2ex")
+    try:
+        selected = site_definition(selected_site) if selected_site else None
+    except ValueError as exc:
+        raise ConfigError(str(exc)) from exc
+
+    def site_value(site, key: str) -> str | None:
+        if selected and selected.site != site.site:
+            return None
+        return environ.get(key)
+
+    javbus_cookies = _lines(site_value(javbus, "JAVBUS_COOKIES"))
+    usernames = _lines(site_value(fuliba, "FULIBA_USERNAMES"))
+    fuliba_cookies = _lines(site_value(fuliba, "FULIBA_COOKIES"))
     if len(usernames) != len(fuliba_cookies):
         raise ConfigError("FULIBA_USERNAMES and FULIBA_COOKIES must have the same line count")
 
-    v2ex_usernames = _lines(environ.get("V2EX_USERNAMES"))
-    v2ex_cookies = _lines(environ.get("V2EX_COOKIES"))
+    v2ex_usernames = _lines(site_value(v2ex, "V2EX_USERNAMES"))
+    v2ex_cookies = _lines(site_value(v2ex, "V2EX_COOKIES"))
     if len(v2ex_usernames) != len(v2ex_cookies):
         raise ConfigError("V2EX_USERNAMES and V2EX_COOKIES must have the same line count")
 
@@ -168,12 +185,8 @@ def load_config(
     if notify_mode not in {"summary", "individual"}:
         raise ConfigError("CHECKIN_NOTIFY_MODE must be summary or individual")
 
-    javbus = site_definition("javbus")
-    fuliba = site_definition("fuliba")
-    v2ex = site_definition("v2ex")
-
     return AppConfig(
-        javbus_cookies=_lines(environ.get("JAVBUS_COOKIES")),
+        javbus_cookies=javbus_cookies,
         fuliba_accounts=tuple(
             FulibaAccount(username, cookie)
             for username, cookie in zip(usernames, fuliba_cookies, strict=True)
@@ -183,13 +196,16 @@ def load_config(
             for username, cookie in zip(v2ex_usernames, v2ex_cookies, strict=True)
         ),
         javbus_base_url=validate_base_url(
-            environ.get(javbus.base_url_key, javbus.default_base_url), javbus.base_url_key
+            site_value(javbus, javbus.base_url_key) or javbus.default_base_url,
+            javbus.base_url_key,
         ),
         fuliba_base_url=validate_base_url(
-            environ.get(fuliba.base_url_key, fuliba.default_base_url), fuliba.base_url_key
+            site_value(fuliba, fuliba.base_url_key) or fuliba.default_base_url,
+            fuliba.base_url_key,
         ),
         v2ex_base_url=validate_base_url(
-            environ.get(v2ex.base_url_key, v2ex.default_base_url), v2ex.base_url_key
+            site_value(v2ex, v2ex.base_url_key) or v2ex.default_base_url,
+            v2ex.base_url_key,
         ),
         timeout_seconds=timeout,
         retries=retries,

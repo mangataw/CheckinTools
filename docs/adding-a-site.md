@@ -33,6 +33,9 @@ Checker 文件。
 4. 从 `site_definition()` 读取基础地址变量和默认值，并使用 `validate_base_url()` 校验。
 5. 在 `AppConfig.secrets()` 中加入用户名、Cookie、Token 等需要脱敏的值。
 
+`load_config(selected_site=...)` 会忽略其他站点的账号与基础地址。新增站点的解析逻辑也要遵循该
+范围，确保运行其他站点时不会被本地无关配置阻断。
+
 例如，只有 Cookie 的站点通常需要：
 
 ```python
@@ -94,6 +97,9 @@ class ExampleChecker(Checker):
     def accounts(self):
         return self._accounts
 
+    def state_identity(self, account: str):
+        return (account,)
+
     def check(self, account: str, account_label: str) -> CheckinResult:
         started = time.monotonic()
         try:
@@ -128,6 +134,7 @@ class ExampleChecker(Checker):
 示例中的业务部分只是结构占位，实际实现必须满足以下约束：
 
 - 每个账号创建独立 Session，避免 Cookie 和请求状态相互污染。
+- 实现 `state_identity()` 并返回稳定的凭据材料；内容只用于生成匿名状态指纹，不能写入日志。
 - 使用 `SafeHttpClient` 生成和检查地址，携带凭据的请求不得绕过 HTTPS 与同主机限制。
 - 操作前验证 Cookie 对应的登录身份或其他可靠登录状态。
 - `SUCCESS` 必须有操作后的站点证据，HTTP 200 本身不能作为成功依据。

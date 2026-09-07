@@ -18,6 +18,10 @@ class Checker(ABC):
     def accounts(self) -> Sequence[Any]:
         """Return configured accounts without exposing them in logs."""
 
+    def state_identity(self, account: Any) -> Sequence[str]:
+        """Return stable secret parts used only to derive an anonymous state key."""
+        return (repr(account),)
+
     @abstractmethod
     def check(self, account: Any, account_label: str) -> CheckinResult:
         """Run one isolated account check-in."""

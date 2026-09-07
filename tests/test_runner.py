@@ -2,6 +2,7 @@ from checkin_tools.interfaces import Checker, Notifier
 from checkin_tools.models import CheckinResult, ResultStatus
 from checkin_tools.registry import checker_map, notifier_map
 from checkin_tools.runner import Runner
+from checkin_tools.state import DailyState
 
 
 class FakeChecker(Checker):
@@ -89,6 +90,28 @@ def test_runner_skips_terminal_accounts_without_turning_run_into_failure():
     assert not report.results
     assert report.skipped_accounts == 2
     assert report.exit_code == 0
+
+
+def test_stable_state_keys_survive_account_reordering():
+    first_report = Runner([FakeChecker(("first-secret", "second-secret"))]).run()
+    state = DailyState("2026-09-07")
+    state.update(first_report)
+    assert all("secret" not in key for key in state.terminal_accounts)
+
+    reordered = FakeChecker(("second-secret", "first-secret"))
+    second_report = Runner([reordered], terminal_accounts=state.terminal_accounts).run()
+    assert not second_report.results
+    assert second_report.skipped_accounts == 2
+
+
+def test_broken_state_identity_falls_back_without_blocking_account():
+    class BrokenIdentityChecker(FakeChecker):
+        def state_identity(self, account):
+            raise RuntimeError("cookie=should-not-leak")
+
+    report = Runner([BrokenIdentityChecker(("ok",))]).run()
+    assert report.results[0].status is ResultStatus.SUCCESS
+    assert report.results[0].state_key == "fake:account-1"
 
 
 def test_individual_notification_mode_sends_one_message_per_result():

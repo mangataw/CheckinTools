@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Iterable
+from dataclasses import replace
 
 from checkin_tools.interfaces import Checker, Notifier
 from checkin_tools.models import CheckinResult, NotificationResult, ResultStatus, RunReport
 from checkin_tools.registry import checker_map
 from checkin_tools.security import sanitize_text
+from checkin_tools.state import account_state_key
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,8 +38,20 @@ class Runner:
         for checker in selected:
             for index, account in enumerate(checker.accounts, start=1):
                 label = f"account-{index}"
-                account_key = f"{checker.site}:{label}"
-                if account_key in self.terminal_accounts:
+                legacy_key = f"{checker.site}:{label}"
+                try:
+                    stable_key = account_state_key(
+                        checker.site, checker.state_identity(account)
+                    )
+                except Exception as exc:
+                    stable_key = legacy_key
+                    LOGGER.warning(
+                        "%s %s could not derive a stable state key: %s",
+                        checker.site,
+                        label,
+                        sanitize_text(exc, self.secrets),
+                    )
+                if stable_key in self.terminal_accounts or legacy_key in self.terminal_accounts:
                     report.skipped_accounts += 1
                     LOGGER.info(
                         "%s %s skipped: a successful result was already recorded today",
@@ -56,6 +70,7 @@ class Runner:
                         sanitize_text(exc, self.secrets),
                         time.monotonic() - started,
                     )
+                result = replace(result, state_key=stable_key)
                 report.results.append(result)
                 LOGGER.info("%s %s %s: %s", checker.site, label, result.status, result.summary)
 

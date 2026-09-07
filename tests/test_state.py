@@ -3,7 +3,13 @@ import json
 import pytest
 
 from checkin_tools.models import CheckinResult, NotificationResult, ResultStatus, RunReport
-from checkin_tools.state import DailyState, StateError, load_daily_state, save_daily_state
+from checkin_tools.state import (
+    DailyState,
+    StateError,
+    account_state_key,
+    load_daily_state,
+    save_daily_state,
+)
 
 
 def test_missing_or_old_state_starts_a_clean_day(tmp_path):
@@ -57,6 +63,37 @@ def test_notification_failure_does_not_retry_a_successful_checkin():
         )
     )
     assert state.terminal_accounts == {"site:account-1"}
+
+
+def test_account_state_key_is_stable_scoped_and_anonymous():
+    identity = ("private-user", "private-cookie")
+    first = account_state_key("site", identity)
+    assert first == account_state_key("site", identity)
+    assert first != account_state_key("other-site", identity)
+    assert first != account_state_key("site", ("private-user", "new-cookie"))
+    assert first.startswith("site:account-")
+    assert "private-user" not in first
+    assert "private-cookie" not in first
+
+
+def test_state_prefers_explicit_stable_key_for_terminal_result():
+    stable_key = account_state_key("site", ("user", "cookie"))
+    state = DailyState("2026-09-07")
+    state.update(
+        RunReport(
+            results=[
+                CheckinResult(
+                    "site",
+                    "account-1",
+                    ResultStatus.SUCCESS,
+                    "done",
+                    0.1,
+                    state_key=stable_key,
+                )
+            ]
+        )
+    )
+    assert state.terminal_accounts == {stable_key}
 
 
 @pytest.mark.parametrize(

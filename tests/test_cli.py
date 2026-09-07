@@ -14,7 +14,7 @@ def isolate_cli_tests_from_local_dotenv(monkeypatch):
     monkeypatch.setattr(
         cli,
         "load_config",
-        lambda: load_config(os.environ, load_local_dotenv=False),
+        lambda **kwargs: load_config(os.environ, load_local_dotenv=False, **kwargs),
     )
 
 
@@ -62,6 +62,19 @@ def test_parser_supports_documented_commands():
     for site in SITE_IDS:
         assert parser.parse_args(["run", "--site", site, "--no-notify"]).site == site
     assert parser.parse_args(["notify-test", "--channel", "feishu"]).channel == "feishu"
+
+
+def test_run_scopes_configuration_to_requested_site(monkeypatch):
+    selected_sites = []
+
+    def scoped_config(**kwargs):
+        selected_sites.append(kwargs.get("selected_site"))
+        return load_config({}, load_local_dotenv=False)
+
+    monkeypatch.setattr(cli, "load_config", scoped_config)
+    monkeypatch.setattr(cli, "_components", lambda config, selection=None: ([], []))
+    assert cli.main(["run", "--site", "javbus", "--no-notify"]) == 2
+    assert selected_sites == ["javbus"]
 
 
 def test_cli_daily_state_skips_terminal_account_on_second_run(monkeypatch, tmp_path):

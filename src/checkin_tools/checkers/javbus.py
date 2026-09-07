@@ -49,6 +49,9 @@ class JavBusChecker(Checker):
     def accounts(self):
         return self._accounts
 
+    def state_identity(self, account: str):
+        return (account,)
+
     def check(self, account: str, account_label: str) -> CheckinResult:
         started = time.monotonic()
         retryable = False

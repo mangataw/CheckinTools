@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
+from hashlib import sha256
 from pathlib import Path
 
 from checkin_tools.models import ResultStatus, RunReport
@@ -15,6 +17,13 @@ class StateError(ValueError):
     pass
 
 
+def account_state_key(site: str, identity: Sequence[str]) -> str:
+    """Create a stable anonymous key without storing the source identity."""
+    payload = json.dumps([site, *identity], ensure_ascii=False, separators=(",", ":"))
+    digest = sha256(f"checkin-tools-state-v1\0{payload}".encode()).hexdigest()[:24]
+    return f"{site}:account-{digest}"
+
+
 @dataclass(slots=True)
 class DailyState:
     date: str
@@ -22,7 +31,7 @@ class DailyState:
 
     def update(self, report: RunReport) -> None:
         self.terminal_accounts.update(
-            f"{result.site}:{result.account}"
+            result.state_key or f"{result.site}:{result.account}"
             for result in report.results
             if result.status in {ResultStatus.SUCCESS, ResultStatus.ALREADY_DONE}
         )

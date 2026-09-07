@@ -54,6 +54,9 @@ class FulibaChecker(Checker):
     def accounts(self):
         return self._accounts
 
+    def state_identity(self, account: FulibaAccount):
+        return (account.username, account.cookie)
+
     def check(self, account: FulibaAccount, account_label: str) -> CheckinResult:
         started = time.monotonic()
         retryable = False

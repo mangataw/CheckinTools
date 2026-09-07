@@ -75,6 +75,9 @@ class V2exChecker(Checker):
     def accounts(self):
         return self._accounts
 
+    def state_identity(self, account: V2exAccount):
+        return (account.username, account.cookie)
+
     def check(self, account: V2exAccount, account_label: str) -> CheckinResult:
         started = time.monotonic()
         retryable = False
