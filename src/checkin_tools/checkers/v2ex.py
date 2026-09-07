@@ -16,6 +16,7 @@ from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
 from checkin_tools.security import sanitize_text
+from checkin_tools.site_catalog import site_definition
 
 _MISSION_PATH = "/mission/daily"
 _BALANCE_PATH = "/balance"
@@ -55,9 +56,12 @@ class _BalanceEntry:
     total: str
 
 
+_SITE = site_definition("v2ex")
+
+
 class V2exChecker(Checker):
-    site = "v2ex"
-    display_name = "V2EX"
+    site = _SITE.site
+    display_name = _SITE.display_name
 
     def __init__(self, config: AppConfig, client: SafeHttpClient | None = None) -> None:
         self._accounts = config.v2ex_accounts

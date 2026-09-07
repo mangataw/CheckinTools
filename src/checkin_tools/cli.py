@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from checkin_tools.config import ConfigError, load_config
 from checkin_tools.security import configure_logging, register_ci_masks
+from checkin_tools.site_catalog import SITE_IDS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -17,7 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("validate-config")
     run = commands.add_parser("run")
-    run.add_argument("--site", choices=("all", "javbus", "fuliba", "v2ex"), default="all")
+    run.add_argument("--site", choices=("all", *SITE_IDS), default="all")
     run.add_argument("--no-notify", action="store_true")
     run.add_argument("--state-file")
     run.add_argument("--state-date")

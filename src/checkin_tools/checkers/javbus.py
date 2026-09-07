@@ -15,6 +15,7 @@ from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
 from checkin_tools.security import sanitize_text
+from checkin_tools.site_catalog import site_definition
 
 _CREDIT_LOG_PATH = "/forum/home.php?mod=spacecp&ac=credit&op=log&suboperation=creditrulelog"
 _DAILY_MARKERS = ("每天登录", "每天登錄")
@@ -29,9 +30,12 @@ _BROWSER_HEADERS = {
 }
 
 
+_SITE = site_definition("javbus")
+
+
 class JavBusChecker(Checker):
-    site = "javbus"
-    display_name = "JavBus"
+    site = _SITE.site
+    display_name = _SITE.display_name
 
     def __init__(self, config: AppConfig, client: SafeHttpClient | None = None) -> None:
         self._accounts = config.javbus_cookies

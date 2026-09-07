@@ -10,26 +10,13 @@ from datetime import datetime
 from pathlib import Path
 
 DEFAULT_CONFIG_FILE = Path("/ql/data/config/checkin-tools.env")
-SITES = {"javbus", "fuliba", "v2ex"}
-CONFIG_KEYS = {
-    "JAVBUS_COOKIES",
-    "FULIBA_USERNAMES",
-    "FULIBA_COOKIES",
-    "V2EX_USERNAMES",
-    "V2EX_COOKIES",
-    "JAVBUS_BASE_URL",
-    "FULIBA_BASE_URL",
-    "V2EX_BASE_URL",
-    "CHECKIN_TIMEOUT_SECONDS",
-    "CHECKIN_RETRIES",
-    "DINGTALK_ACCESS_TOKEN",
-    "DINGTALK_SECRET",
-    "FEISHU_WEBHOOK",
-    "FEISHU_SECRET",
-    "CHECKIN_NOTIFY_CHANNEL",
-    "CHECKIN_NOTIFY_MODE",
-    "CHECKIN_QINGLONG_DATA_DIR",
-}
+QINGLONG_CONFIG_KEYS = {"CHECKIN_QINGLONG_DATA_DIR"}
+
+
+def _config_keys() -> frozenset[str]:
+    from checkin_tools.config import APP_CONFIG_KEYS
+
+    return frozenset(APP_CONFIG_KEYS | QINGLONG_CONFIG_KEYS)
 
 
 def _config_path(environ: Mapping[str, str]) -> Path:
@@ -49,7 +36,7 @@ def _load_settings(environ: Mapping[str, str]) -> tuple[Path, dict[str, str]]:
     from dotenv import dotenv_values
 
     parsed = dotenv_values(path)
-    unknown = sorted(set(parsed) - CONFIG_KEYS)
+    unknown = sorted(set(parsed) - _config_keys())
     if unknown:
         raise RuntimeError(f"配置文件包含未知参数：{', '.join(unknown)}")
     if any(value is None for value in parsed.values()):
@@ -76,12 +63,10 @@ def _add_source_path() -> None:
 
 
 def _site_is_configured(site: str, settings: Mapping[str, str]) -> bool:
-    keys = {
-        "javbus": ("JAVBUS_COOKIES",),
-        "fuliba": ("FULIBA_USERNAMES", "FULIBA_COOKIES"),
-        "v2ex": ("V2EX_USERNAMES", "V2EX_COOKIES"),
-    }[site]
-    return any(settings.get(key, "").strip() for key in keys)
+    from checkin_tools.site_catalog import site_definition
+
+    definition = site_definition(site)
+    return any(settings.get(key, "").strip() for key in definition.credential_keys)
 
 
 def _state_date(site: str, now: datetime | None = None) -> str:
@@ -112,10 +97,12 @@ def _run_cli(arguments: list[str], settings: Mapping[str, str]) -> int:
 
 def run_site(site: str) -> int:
     """Run one site as one independently managed Qinglong task."""
-    if site not in SITES:
-        raise ValueError(f"unknown site: {site}")
     old_umask = os.umask(0o077)
     try:
+        _add_source_path()
+        from checkin_tools.site_catalog import site_definition
+
+        site_definition(site)
         config_path, settings = _load_settings(os.environ)
         if not _site_is_configured(site, settings):
             print(f"{site} 未配置账号，请编辑：{config_path}", file=sys.stderr)
@@ -125,7 +112,6 @@ def run_site(site: str) -> int:
         if not data_dir.is_absolute():
             raise RuntimeError("CHECKIN_QINGLONG_DATA_DIR 必须是绝对路径")
         data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        _add_source_path()
         try:
             with _single_instance(data_dir, site):
                 return _run_cli(
@@ -143,6 +129,8 @@ def run_site(site: str) -> int:
         except BlockingIOError:
             print(f"已有 {site} 青龙任务正在运行，本次跳过。", file=sys.stderr)
             return 3
+    except ValueError:
+        raise
     except (ImportError, OSError, RuntimeError) as exc:
         print(f"青龙运行环境错误：{exc}", file=sys.stderr)
         return 2

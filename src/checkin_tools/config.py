@@ -9,6 +9,19 @@ from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
+from checkin_tools.site_catalog import SITE_CONFIG_KEYS, site_definition
+
+APP_CONFIG_KEYS = SITE_CONFIG_KEYS | {
+    "CHECKIN_TIMEOUT_SECONDS",
+    "CHECKIN_RETRIES",
+    "DINGTALK_ACCESS_TOKEN",
+    "DINGTALK_SECRET",
+    "FEISHU_WEBHOOK",
+    "FEISHU_SECRET",
+    "CHECKIN_NOTIFY_CHANNEL",
+    "CHECKIN_NOTIFY_MODE",
+}
+
 
 class ConfigError(ValueError):
     """Raised when one or more configuration values are invalid."""
@@ -155,6 +168,10 @@ def load_config(
     if notify_mode not in {"summary", "individual"}:
         raise ConfigError("CHECKIN_NOTIFY_MODE must be summary or individual")
 
+    javbus = site_definition("javbus")
+    fuliba = site_definition("fuliba")
+    v2ex = site_definition("v2ex")
+
     return AppConfig(
         javbus_cookies=_lines(environ.get("JAVBUS_COOKIES")),
         fuliba_accounts=tuple(
@@ -166,13 +183,13 @@ def load_config(
             for username, cookie in zip(v2ex_usernames, v2ex_cookies, strict=True)
         ),
         javbus_base_url=validate_base_url(
-            environ.get("JAVBUS_BASE_URL", "https://www.javbus.com"), "JAVBUS_BASE_URL"
+            environ.get(javbus.base_url_key, javbus.default_base_url), javbus.base_url_key
         ),
         fuliba_base_url=validate_base_url(
-            environ.get("FULIBA_BASE_URL", "https://www.wnflb2023.com"), "FULIBA_BASE_URL"
+            environ.get(fuliba.base_url_key, fuliba.default_base_url), fuliba.base_url_key
         ),
         v2ex_base_url=validate_base_url(
-            environ.get("V2EX_BASE_URL", "https://www.v2ex.com"), "V2EX_BASE_URL"
+            environ.get(v2ex.base_url_key, v2ex.default_base_url), v2ex.base_url_key
         ),
         timeout_seconds=timeout,
         retries=retries,

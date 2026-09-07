@@ -3,8 +3,9 @@
 本文说明如何在当前架构中加入一个新的每日签到站点。以下示例使用站点标识 `example`；实际
 标识建议使用小写英文字母、数字和下划线，并在代码、CLI、状态文件及平台入口中保持一致。
 
-当前站点注册仍是显式维护。完成一个新站点需要同时接入核心包、配置、GitHub Actions、青龙、
-测试和文档，不能只添加一个 Checker 文件。
+站点 ID、显示名称、青龙任务标题、凭据键和默认地址集中保存在 `site_catalog.py`。Checker 类、
+账号解析、GitHub Actions 选项、青龙静态入口、模板及文档仍需显式维护，不能只添加一个
+Checker 文件。
 
 ## 1. 开始前确认任务适用
 
@@ -20,13 +21,16 @@
 
 ## 2. 定义配置
 
-在 `src/checkin_tools/config.py` 中完成以下修改：
+先在 `src/checkin_tools/site_catalog.py` 的 `SITE_DEFINITIONS` 增加站点定义，填写唯一站点 ID、
+显示名称、青龙任务标题、凭据键、基础地址变量和默认 HTTPS 地址。
+
+再在 `src/checkin_tools/config.py` 中完成以下修改：
 
 1. 根据账号字段决定是否新增账号数据类。只有 Cookie 的站点可以直接使用字符串元组；用户名与
    Cookie 成对的站点应使用冻结的数据类。
 2. 在 `AppConfig` 增加账号集合和基础地址等字段。
 3. 在 `load_config()` 中拆分环境变量，并校验必填项、配对数量和允许范围。
-4. 使用 `validate_base_url()` 校验可覆盖的站点基础地址。
+4. 从 `site_definition()` 读取基础地址变量和默认值，并使用 `validate_base_url()` 校验。
 5. 在 `AppConfig.secrets()` 中加入用户名、Cookie、Token 等需要脱敏的值。
 
 例如，只有 Cookie 的站点通常需要：
@@ -49,9 +53,9 @@ EXAMPLE_BASE_URL=https://example.com
 同时更新根目录 `.env.example` 和 `qinglong/checkin-tools.env`。公开模板只能放占位值，不能提交
 真实用户名、Cookie、Token、Webhook 或页面 fixture 中的个人信息。
 
-青龙入口会拒绝模板之外的未知字段，因此还必须把新变量加入
-`qinglong/DefaultTasks/checkin_base.py` 的 `CONFIG_KEYS`。旧用户的持久化配置不会随订阅更新而
-自动增加字段；发布说明和站点文档需要列出应手动加入的配置项。
+青龙入口会拒绝模板之外的未知字段。站点目录中的凭据键和基础地址键会自动进入允许列表；若新增
+的是站点目录之外的运行选项，仍需将其加入 `APP_CONFIG_KEYS` 或青龙专用配置键。旧用户的持久化
+配置不会随订阅更新而自动增加字段；发布说明和站点文档需要列出应手动加入的配置项。
 
 ## 3. 实现 Checker
 
@@ -67,11 +71,15 @@ import requests
 from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
+from checkin_tools.site_catalog import site_definition
+
+
+_SITE = site_definition("example")
 
 
 class ExampleChecker(Checker):
-    site = "example"
-    display_name = "Example"
+    site = _SITE.site
+    display_name = _SITE.display_name
 
     def __init__(self, config, client: SafeHttpClient | None = None) -> None:
         self._accounts = config.example_cookies
@@ -131,8 +139,9 @@ Runner 会隔离未处理异常并进行脱敏，但 Checker 应优先把预期�
 
 ## 4. 注册到核心 CLI
 
-在 `src/checkin_tools/checkers/__init__.py` 导入新类，将其实例加入 `build_checkers()`，并按需加入
-`__all__`。随后在 `src/checkin_tools/cli.py` 的 `run --site` choices 中加入 `example`。
+在 `src/checkin_tools/checkers/__init__.py` 导入新类，将类型加入 `_CHECKER_TYPES`，并按需加入
+`__all__`。`build_checkers()` 会按站点目录顺序创建实例，并检查注册项与目录一致。CLI 的
+`run --site` choices 会自动读取站点目录，不需要再单独修改。
 
 此时以下命令应能够解析和运行：
 
@@ -172,12 +181,11 @@ if __name__ == "__main__":
 
 然后完成以下同步：
 
-1. 在 `checkin_base.py` 的 `SITES` 加入站点标识。
-2. 在 `_site_is_configured()` 中声明判断该站点已配置所需的账号变量。
-3. 把所有新配置变量加入 `CONFIG_KEYS`。
-4. 更新 README 和 `docs/qinglong.md` 中订阅白名单的站点正则。
-5. 更新青龙教程中的任务数量、入口文件、配置变量和状态文件说明。
-6. 更新 `tests/test_qinglong_entry.py` 中入口文件、订阅匹配、配置模板和运行桥接断言。
+1. 更新 README 和 `docs/qinglong.md` 中订阅白名单的站点正则。
+2. 更新青龙教程中的任务数量、入口文件、配置变量和状态文件说明。
+3. 更新 `tests/test_qinglong_entry.py` 中入口文件、订阅匹配、配置模板和运行桥接断言。
+
+青龙的站点合法性、账号配置判断和站点配置键会从站点目录读取，不需要维护另一份站点集合。
 
 已保存旧订阅的用户需要手动更新白名单，新入口才会被青龙拉取并注册为任务。已有
 `/ql/data/config/checkin-tools.env` 不会被模板覆盖，也需要根据升级说明手动增加新变量。
@@ -215,11 +223,11 @@ if __name__ == "__main__":
 
 提交前按以下清单核对：
 
-- [ ] 配置字段、校验、脱敏和两个配置模板已经同步。
+- [ ] 站点目录以及配置字段、校验、脱敏和两个配置模板已经同步。
 - [ ] Checker 返回统一结果，并使用站点证据确认成功。
-- [ ] 新站点已注册到 Checker 构建函数和 CLI choices。
+- [ ] 新 Checker 类型已注册，目录一致性检查和 CLI choices 已覆盖该站点。
 - [ ] GitHub Actions 手动选项与 Secrets 映射已经添加。
-- [ ] 青龙入口、站点集合、配置判断、白名单和教程已经同步。
+- [ ] 青龙入口、订阅白名单和教程已经同步。
 - [ ] 行为、配置、CLI、工作流及青龙测试已经覆盖。
 - [ ] README 和独立站点文档已经更新。
 - [ ] `python -m ruff check .` 通过。

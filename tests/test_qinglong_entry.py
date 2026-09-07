@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from checkin_tools.site_catalog import SITE_DEFINITIONS, SITE_IDS
 from qinglong.DefaultTasks import checkin_base, checkin_setup
 
 TASK_DIR = Path("qinglong/DefaultTasks")
@@ -25,11 +26,10 @@ def write_config(tmp_path, monkeypatch):
     return path
 
 
-def test_three_task_metadata_and_shared_base_is_not_a_task():
+def test_task_metadata_matches_catalog_and_shared_base_is_not_a_task():
     expected = {
-        "checkin_task_javbus.py": "CheckinTools - JavBus 签到",
-        "checkin_task_fuliba.py": "CheckinTools - 福利吧签到",
-        "checkin_task_v2ex.py": "CheckinTools - V2EX 签到",
+        f"checkin_task_{definition.site}.py": definition.qinglong_task_name
+        for definition in SITE_DEFINITIONS
     }
     for filename, name in expected.items():
         source = (TASK_DIR / filename).read_text(encoding="utf-8")
@@ -42,26 +42,19 @@ def test_three_task_metadata_and_shared_base_is_not_a_task():
 
 def test_single_subscription_prefix_selects_all_qinglong_files():
     filenames = sorted(path.name for path in TASK_DIR.glob("checkin_task_*.py"))
-    assert filenames == [
-        "checkin_task_fuliba.py",
-        "checkin_task_javbus.py",
-        "checkin_task_v2ex.py",
-    ]
+    assert filenames == sorted(f"checkin_task_{site}.py" for site in SITE_IDS)
     guide = Path("docs/qinglong.md").read_text(encoding="utf-8")
-    assert '"checkin_task_(javbus|fuliba|v2ex)[.]py"' in guide
+    site_pattern = "|".join(SITE_IDS)
+    assert f'"checkin_task_({site_pattern})[.]py"' in guide
     assert "checkin_setup.py" in guide
 
 
 def test_subscription_regex_selects_only_three_task_entries():
-    pattern = re.compile(r"checkin_task_(javbus|fuliba|v2ex)[.]py")
+    pattern = re.compile(rf"checkin_task_({'|'.join(SITE_IDS)})[.]py")
     selected = sorted(
         path.name for path in TASK_DIR.glob("*.py") if pattern.search(path.name)
     )
-    assert selected == [
-        "checkin_task_fuliba.py",
-        "checkin_task_javbus.py",
-        "checkin_task_v2ex.py",
-    ]
+    assert selected == sorted(f"checkin_task_{site}.py" for site in SITE_IDS)
 
 
 def test_setup_is_not_a_task_and_copies_config_only_once(tmp_path):
@@ -102,7 +95,7 @@ def test_setup_creates_config_before_dependency_failure(monkeypatch):
 def test_template_keys_match_runtime_allowlist():
     from dotenv import dotenv_values
 
-    assert set(dotenv_values(TEMPLATE)) == checkin_base.CONFIG_KEYS
+    assert set(dotenv_values(TEMPLATE)) == checkin_base._config_keys()
 
 
 def test_source_layout():
@@ -117,7 +110,7 @@ def test_site_configuration_and_qinglong_local_dates():
     local_zone = timezone(timedelta(hours=8))
     first_run = datetime(2026, 9, 5, 0, 30, tzinfo=local_zone)
     second_run = datetime(2026, 9, 5, 8, 30, tzinfo=local_zone)
-    for site in ("javbus", "fuliba", "v2ex"):
+    for site in SITE_IDS:
         assert checkin_base._state_date(site, first_run) == "2026-09-05"
         assert checkin_base._state_date(site, second_run) == "2026-09-05"
 

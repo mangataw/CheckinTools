@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+from checkin_tools.site_catalog import SITE_IDS
+
 
 def workflow(name):
     return (Path(__file__).parents[1] / ".github" / "workflows" / name).read_text(
@@ -39,7 +41,7 @@ def test_checkin_schedule_and_manual_sites_are_present():
     assert "--state-file .checkin-state.json" in contents
     assert "checkin-state-${{ env.CHECKIN_DATE }}-" in contents
     assert "workflow_dispatch:" in contents
-    assert all(f"- {site}" in contents for site in ("all", "javbus", "fuliba", "v2ex"))
+    assert all(f"- {site}" in contents for site in ("all", *SITE_IDS))
     assert "V2EX_USERNAMES: ${{ secrets.V2EX_USERNAMES }}" in contents
     assert "V2EX_COOKIES: ${{ secrets.V2EX_COOKIES }}" in contents
     assert "contents: read" in contents

@@ -6,6 +6,7 @@ from checkin_tools import cli
 from checkin_tools.config import load_config
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
+from checkin_tools.site_catalog import SITE_IDS
 
 
 @pytest.fixture(autouse=True)
@@ -58,8 +59,8 @@ def test_valid_but_empty_config_returns_2(monkeypatch):
 
 def test_parser_supports_documented_commands():
     parser = cli.build_parser()
-    assert parser.parse_args(["run", "--site", "javbus", "--no-notify"]).site == "javbus"
-    assert parser.parse_args(["run", "--site", "v2ex", "--no-notify"]).site == "v2ex"
+    for site in SITE_IDS:
+        assert parser.parse_args(["run", "--site", site, "--no-notify"]).site == site
     assert parser.parse_args(["notify-test", "--channel", "feishu"]).channel == "feishu"
 
 
