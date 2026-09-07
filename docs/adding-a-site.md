@@ -5,7 +5,8 @@
 
 站点 ID、显示名称、青龙任务标题、凭据键和默认地址集中保存在 `site_catalog.py`。Checker 类、
 账号解析、GitHub Actions 选项、青龙静态入口、模板及文档仍需显式维护，不能只添加一个
-Checker 文件。
+Checker 文件。当前不自动扫描站点模块，原因及未来插件化条件参阅
+[站点注册与插件机制决策](extension-strategy.md)。
 
 ## 1. 开始前确认任务适用
 
