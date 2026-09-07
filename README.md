@@ -117,6 +117,7 @@ V2EX_COOKIES='first-cookie\nsecond-cookie'
 
 ## 详细文档
 
+- [项目状态与验收记录](docs/project-status.md)
 - [项目架构与目录说明](docs/architecture.md)
 - [新增签到站点指南](docs/adding-a-site.md)
 - [站点注册与插件机制决策](docs/extension-strategy.md)
