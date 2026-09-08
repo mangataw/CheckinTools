@@ -36,3 +36,25 @@ def test_check_mode_does_not_write(tmp_path):
     expected = tmp_path / ".env.example"
     assert expected in sync_sites.sync_sites(tmp_path, check=True)
     assert not expected.exists()
+
+
+def test_sync_repairs_managed_blocks(tmp_path):
+    for relative in (
+        ".github/workflows/checkin.yml",
+        "README.md",
+        "docs/qinglong.md",
+    ):
+        source = sync_sites.REPO_ROOT / relative
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+
+    workflow = tmp_path / ".github" / "workflows" / "checkin.yml"
+    workflow.write_text(
+        workflow.read_text(encoding="utf-8").replace("          - javbus", "          - drift"),
+        encoding="utf-8",
+    )
+
+    assert workflow in sync_sites.sync_sites(tmp_path, check=True)
+    sync_sites.sync_sites(tmp_path)
+    assert sync_sites.sync_sites(tmp_path, check=True) == ()

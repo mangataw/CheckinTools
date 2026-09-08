@@ -5,17 +5,19 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 
 ## 支持功能
 
+<!-- BEGIN GENERATED: readme-supported-sites -->
 - JavBus 论坛每日登录积分
 - 福利吧签到
 - V2EX 每日登录奖励
 - 钉钉自定义群机器人通知
 - 飞书自定义群机器人通知
 - 多账号、失败隔离、每日两次执行与状态去重
+<!-- END GENERATED: readme-supported-sites -->
 
 ## 青龙平台
 
-青龙 Docker 可直接订阅本仓库，并分别创建 JavBus、福利吧和 V2EX 三个签到任务。
-三个任务默认在容器当地时间 00:30 和 08:30 执行。订阅执行后会在
+青龙 Docker 可直接订阅本仓库，并为各站点分别创建签到任务。
+各任务默认在容器当地时间 00:30 和 08:30 执行。订阅执行后会在
 `/ql/data/config/checkin-tools.env` 首次初始化带注释的集中配置模板，后续更新不会覆盖。
 当新版模板增加配置项时，初始化脚本会在现有文件末尾补充缺失字段，已有 Cookie、密钥和自定义
 值保持不变。
@@ -24,7 +26,7 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，可通�
 在青龙「订阅管理 → 新建订阅」中可粘贴以下整行命令导入仓库参数：
 
 ```text
-ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_(javbus|fuliba|v2ex)[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py"
+ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_[a-z0-9_]+[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py"
 ```
 
 把命令粘贴到新建订阅弹窗的「名称」输入框，待仓库参数自动展开后，将名称填为
@@ -42,6 +44,7 @@ ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_(javbus|ful
 4. 在 **Actions → Daily check-in → Run workflow** 中先手动测试单个站点。
 5. 确认无误后保留定时任务。
 
+<!-- BEGIN GENERATED: readme-site-secrets -->
 至少需要配置一个站点：
 
 | Repository secret | 用途 |
@@ -55,6 +58,7 @@ ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_(javbus|ful
 | `DINGTALK_SECRET` | 可选，钉钉加签密钥 |
 | `FEISHU_WEBHOOK` | 可选，飞书完整 HTTPS Webhook |
 | `FEISHU_SECRET` | 可选，飞书签名密钥 |
+<!-- END GENERATED: readme-site-secrets -->
 
 账号、Cookie、Token、Secret 和 Webhook 必须使用 Repository secrets。通知路由等
 非敏感选项可使用 Repository variables：
@@ -90,6 +94,7 @@ cp .env.example .env
 
 编辑本地 `.env` 后运行：
 
+<!-- BEGIN GENERATED: readme-site-commands -->
 ```bash
 python -m checkin_tools validate-config
 python -m checkin_tools run --site all
@@ -99,6 +104,7 @@ python -m checkin_tools run --site v2ex
 python -m checkin_tools run --site all --no-notify
 python -m checkin_tools notify-test --channel dingtalk
 ```
+<!-- END GENERATED: readme-site-commands -->
 
 本地 `.env` 的多账号值可使用 `\n`：
 
@@ -115,6 +121,7 @@ V2EX_COOKIES='first-cookie\nsecond-cookie'
 默认计划时间为北京时间 09:00 和 14:00，不添加应用层随机延迟。GitHub Actions 的
 计划任务仍可能受平台负载影响而延迟，因此实际开始时间不是严格的准点保证。
 
+<!-- BEGIN GENERATED: readme-site-docs -->
 ## 详细文档
 
 - [项目状态与验收记录](docs/project-status.md)
@@ -123,10 +130,11 @@ V2EX_COOKIES='first-cookie\nsecond-cookie'
 - [站点注册与插件机制决策](docs/extension-strategy.md)
 - [非签到任务扩展边界](docs/non-checkin-tasks.md)
 - [JavBus 使用细则与 Cookie 获取](docs/javbus.md)
-- [福利吧使用细则与 Cookie 获取](docs/fuliba.md)
+- [福利吧 使用细则与 Cookie 获取](docs/fuliba.md)
 - [V2EX 使用细则与 Cookie 获取](docs/v2ex.md)
 - [钉钉与飞书通知配置](docs/notifications.md)
 - [定时去重、安全与开发说明](docs/automation-and-development.md)
+<!-- END GENERATED: readme-site-docs -->
 
 ## 使用提示
 

@@ -44,13 +44,12 @@ def test_single_subscription_prefix_selects_all_qinglong_files():
     filenames = sorted(path.name for path in TASK_DIR.glob("checkin_task_*.py"))
     assert filenames == sorted(f"checkin_task_{site}.py" for site in SITE_IDS)
     guide = Path("docs/qinglong.md").read_text(encoding="utf-8")
-    site_pattern = "|".join(SITE_IDS)
-    assert f'"checkin_task_({site_pattern})[.]py"' in guide
+    assert '"checkin_task_[a-z0-9_]+[.]py"' in guide
     assert "checkin_setup.py" in guide
 
 
-def test_subscription_regex_selects_only_three_task_entries():
-    pattern = re.compile(rf"checkin_task_({'|'.join(SITE_IDS)})[.]py")
+def test_subscription_regex_selects_only_site_task_entries():
+    pattern = re.compile(r"checkin_task_[a-z0-9_]+[.]py")
     selected = sorted(
         path.name for path in TASK_DIR.glob("*.py") if pattern.search(path.name)
     )
