@@ -6,13 +6,27 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
+class CredentialField:
+    """One line-oriented account field supplied through an environment variable."""
+
+    name: str
+    env_key: str
+
+
+@dataclass(frozen=True, slots=True)
 class SiteDefinition:
     site: str
     display_name: str
+    checker_module: str
+    checker_class: str
     qinglong_task_name: str
-    credential_keys: tuple[str, ...]
+    credential_fields: tuple[CredentialField, ...]
     base_url_key: str
     default_base_url: str
+
+    @property
+    def credential_keys(self) -> tuple[str, ...]:
+        return tuple(field.env_key for field in self.credential_fields)
 
     @property
     def config_keys(self) -> tuple[str, ...]:
@@ -23,24 +37,36 @@ SITE_DEFINITIONS = (
     SiteDefinition(
         site="javbus",
         display_name="JavBus",
+        checker_module="checkin_tools.checkers.javbus",
+        checker_class="JavBusChecker",
         qinglong_task_name="CheckinTools - JavBus 签到",
-        credential_keys=("JAVBUS_COOKIES",),
+        credential_fields=(CredentialField("cookie", "JAVBUS_COOKIES"),),
         base_url_key="JAVBUS_BASE_URL",
         default_base_url="https://www.javbus.com",
     ),
     SiteDefinition(
         site="fuliba",
         display_name="福利吧",
+        checker_module="checkin_tools.checkers.fuliba",
+        checker_class="FulibaChecker",
         qinglong_task_name="CheckinTools - 福利吧签到",
-        credential_keys=("FULIBA_USERNAMES", "FULIBA_COOKIES"),
+        credential_fields=(
+            CredentialField("username", "FULIBA_USERNAMES"),
+            CredentialField("cookie", "FULIBA_COOKIES"),
+        ),
         base_url_key="FULIBA_BASE_URL",
         default_base_url="https://www.wnflb2023.com",
     ),
     SiteDefinition(
         site="v2ex",
         display_name="V2EX",
+        checker_module="checkin_tools.checkers.v2ex",
+        checker_class="V2exChecker",
         qinglong_task_name="CheckinTools - V2EX 签到",
-        credential_keys=("V2EX_USERNAMES", "V2EX_COOKIES"),
+        credential_fields=(
+            CredentialField("username", "V2EX_USERNAMES"),
+            CredentialField("cookie", "V2EX_COOKIES"),
+        ),
         base_url_key="V2EX_BASE_URL",
         default_base_url="https://www.v2ex.com",
     ),

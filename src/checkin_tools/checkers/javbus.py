@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import requests
 from bs4 import BeautifulSoup
 
-from checkin_tools.config import AppConfig
+from checkin_tools.config import AppConfig, SiteAccount
 from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
@@ -38,27 +38,32 @@ class JavBusChecker(Checker):
     display_name = _SITE.display_name
 
     def __init__(self, config: AppConfig, client: SafeHttpClient | None = None) -> None:
-        self._accounts = config.javbus_cookies
+        site_config = config.site(self.site)
+        self._accounts = site_config.accounts
         self.client = client or SafeHttpClient(
-            config.javbus_base_url, config.timeout_seconds, config.retries
+            site_config.base_url, config.timeout_seconds, config.retries
         )
-        self._referer = f"{config.javbus_base_url}/forum/home.php?mod=spacecp"
+        self._referer = f"{site_config.base_url}/forum/home.php?mod=spacecp"
         self._secrets = config.secrets()
 
     @property
     def accounts(self):
         return self._accounts
 
-    def state_identity(self, account: str):
-        return (account,)
+    def state_identity(self, account: SiteAccount | str):
+        return account.secret_values() if isinstance(account, SiteAccount) else (account,)
 
-    def check(self, account: str, account_label: str) -> CheckinResult:
+    def check(self, account: SiteAccount | str, account_label: str) -> CheckinResult:
         started = time.monotonic()
         retryable = False
         try:
             session = self.client.new_session()
             session.headers.update(
-                {**_BROWSER_HEADERS, "Referer": self._referer, "Cookie": account}
+                {
+                    **_BROWSER_HEADERS,
+                    "Referer": self._referer,
+                    "Cookie": account.cookie if isinstance(account, SiteAccount) else account,
+                }
             )
             response = self.client.get(session, _CREDIT_LOG_PATH)
             return self._parse(response.text, account_label, started)

@@ -9,7 +9,12 @@ from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
-from checkin_tools.site_catalog import SITE_CONFIG_KEYS, site_definition
+from checkin_tools.site_catalog import (
+    SITE_CONFIG_KEYS,
+    SITE_DEFINITIONS,
+    SiteDefinition,
+    site_definition,
+)
 
 APP_CONFIG_KEYS = SITE_CONFIG_KEYS | {
     "CHECKIN_TIMEOUT_SECONDS",
@@ -28,15 +33,48 @@ class ConfigError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
-class FulibaAccount:
-    username: str
-    cookie: str
+class SiteAccount:
+    """One account whose named credential values follow its site declaration."""
+
+    fields: tuple[tuple[str, str], ...]
+
+    @classmethod
+    def create(cls, **values: str) -> SiteAccount:
+        return cls(tuple(values.items()))
+
+    def value(self, name: str) -> str:
+        try:
+            return dict(self.fields)[name]
+        except KeyError as exc:
+            raise AttributeError(f"account has no {name!r} field") from exc
+
+    @property
+    def username(self) -> str:
+        return self.value("username")
+
+    @property
+    def cookie(self) -> str:
+        return self.value("cookie")
+
+    def secret_values(self) -> tuple[str, ...]:
+        return tuple(value for _, value in self.fields if value)
+
+
+def FulibaAccount(username: str, cookie: str) -> SiteAccount:
+    """Build a legacy Fuliba account value."""
+    return SiteAccount.create(username=username, cookie=cookie)
+
+
+def V2exAccount(username: str, cookie: str) -> SiteAccount:
+    """Build a legacy V2EX account value."""
+    return SiteAccount.create(username=username, cookie=cookie)
 
 
 @dataclass(frozen=True, slots=True)
-class V2exAccount:
-    username: str
-    cookie: str
+class SiteConfig:
+    definition: SiteDefinition
+    accounts: tuple[SiteAccount, ...]
+    base_url: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,12 +91,7 @@ class FeishuConfig:
 
 @dataclass(frozen=True, slots=True)
 class AppConfig:
-    javbus_cookies: tuple[str, ...]
-    fuliba_accounts: tuple[FulibaAccount, ...]
-    v2ex_accounts: tuple[V2exAccount, ...]
-    javbus_base_url: str
-    fuliba_base_url: str
-    v2ex_base_url: str
+    sites: tuple[SiteConfig, ...]
     timeout_seconds: float
     retries: int
     dingtalk: DingTalkConfig | None
@@ -66,12 +99,43 @@ class AppConfig:
     notify_channel: str
     notify_mode: str
 
+    def site(self, site: str) -> SiteConfig:
+        try:
+            return next(config for config in self.sites if config.definition.site == site)
+        except StopIteration as exc:
+            raise ValueError(f"unknown site: {site}") from exc
+
+    @property
+    def javbus_cookies(self) -> tuple[str, ...]:
+        return tuple(account.cookie for account in self.site("javbus").accounts)
+
+    @property
+    def fuliba_accounts(self) -> tuple[SiteAccount, ...]:
+        return self.site("fuliba").accounts
+
+    @property
+    def v2ex_accounts(self) -> tuple[SiteAccount, ...]:
+        return self.site("v2ex").accounts
+
+    @property
+    def javbus_base_url(self) -> str:
+        return self.site("javbus").base_url
+
+    @property
+    def fuliba_base_url(self) -> str:
+        return self.site("fuliba").base_url
+
+    @property
+    def v2ex_base_url(self) -> str:
+        return self.site("v2ex").base_url
+
     def secrets(self) -> tuple[str, ...]:
-        values = [*self.javbus_cookies]
-        for account in self.fuliba_accounts:
-            values.extend((account.username, account.cookie))
-        for account in self.v2ex_accounts:
-            values.extend((account.username, account.cookie))
+        values = [
+            value
+            for site in self.sites
+            for account in site.accounts
+            for value in account.secret_values()
+        ]
         if self.dingtalk:
             values.extend((self.dingtalk.access_token, self.dingtalk.secret))
         if self.feishu:
@@ -106,6 +170,41 @@ def _paired_channel(
     return values if all(values) else None
 
 
+def _load_site_config(
+    definition: SiteDefinition,
+    environ: Mapping[str, str],
+    *,
+    enabled: bool,
+) -> SiteConfig:
+    columns = [
+        _lines(environ.get(field.env_key)) if enabled else ()
+        for field in definition.credential_fields
+    ]
+    lengths = {len(column) for column in columns}
+    if len(lengths) > 1:
+        keys = " and ".join(definition.credential_keys)
+        raise ConfigError(f"{keys} must have the same line count")
+
+    accounts = tuple(
+        SiteAccount(
+            tuple(
+                (field.name, column[index])
+                for field, column in zip(definition.credential_fields, columns, strict=True)
+            )
+        )
+        for index in range(len(columns[0]) if columns else 0)
+    )
+    raw_url = environ.get(definition.base_url_key) if enabled else None
+    return SiteConfig(
+        definition=definition,
+        accounts=accounts,
+        base_url=validate_base_url(
+            raw_url or definition.default_base_url,
+            definition.base_url_key,
+        ),
+    )
+
+
 def load_config(
     environ: Mapping[str, str] | None = None,
     *,
@@ -117,29 +216,19 @@ def load_config(
             load_dotenv()
         environ = os.environ
 
-    javbus = site_definition("javbus")
-    fuliba = site_definition("fuliba")
-    v2ex = site_definition("v2ex")
     try:
         selected = site_definition(selected_site) if selected_site else None
     except ValueError as exc:
         raise ConfigError(str(exc)) from exc
 
-    def site_value(site, key: str) -> str | None:
-        if selected and selected.site != site.site:
-            return None
-        return environ.get(key)
-
-    javbus_cookies = _lines(site_value(javbus, "JAVBUS_COOKIES"))
-    usernames = _lines(site_value(fuliba, "FULIBA_USERNAMES"))
-    fuliba_cookies = _lines(site_value(fuliba, "FULIBA_COOKIES"))
-    if len(usernames) != len(fuliba_cookies):
-        raise ConfigError("FULIBA_USERNAMES and FULIBA_COOKIES must have the same line count")
-
-    v2ex_usernames = _lines(site_value(v2ex, "V2EX_USERNAMES"))
-    v2ex_cookies = _lines(site_value(v2ex, "V2EX_COOKIES"))
-    if len(v2ex_usernames) != len(v2ex_cookies):
-        raise ConfigError("V2EX_USERNAMES and V2EX_COOKIES must have the same line count")
+    site_configs = tuple(
+        _load_site_config(
+            definition,
+            environ,
+            enabled=selected is None or selected.site == definition.site,
+        )
+        for definition in SITE_DEFINITIONS
+    )
 
     try:
         timeout = float(environ.get("CHECKIN_TIMEOUT_SECONDS", "20"))
@@ -186,27 +275,7 @@ def load_config(
         raise ConfigError("CHECKIN_NOTIFY_MODE must be summary or individual")
 
     return AppConfig(
-        javbus_cookies=javbus_cookies,
-        fuliba_accounts=tuple(
-            FulibaAccount(username, cookie)
-            for username, cookie in zip(usernames, fuliba_cookies, strict=True)
-        ),
-        v2ex_accounts=tuple(
-            V2exAccount(username, cookie)
-            for username, cookie in zip(v2ex_usernames, v2ex_cookies, strict=True)
-        ),
-        javbus_base_url=validate_base_url(
-            site_value(javbus, javbus.base_url_key) or javbus.default_base_url,
-            javbus.base_url_key,
-        ),
-        fuliba_base_url=validate_base_url(
-            site_value(fuliba, fuliba.base_url_key) or fuliba.default_base_url,
-            fuliba.base_url_key,
-        ),
-        v2ex_base_url=validate_base_url(
-            site_value(v2ex, v2ex.base_url_key) or v2ex.default_base_url,
-            v2ex.base_url_key,
-        ),
+        sites=site_configs,
         timeout_seconds=timeout,
         retries=retries,
         dingtalk=DingTalkConfig(*dingtalk_values) if dingtalk_values else None,

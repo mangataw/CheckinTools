@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 import requests
 from bs4 import BeautifulSoup
 
-from checkin_tools.config import AppConfig, V2exAccount
+from checkin_tools.config import AppConfig, SiteAccount
 from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
@@ -64,21 +64,22 @@ class V2exChecker(Checker):
     display_name = _SITE.display_name
 
     def __init__(self, config: AppConfig, client: SafeHttpClient | None = None) -> None:
-        self._accounts = config.v2ex_accounts
+        site_config = config.site(self.site)
+        self._accounts = site_config.accounts
         self.client = client or SafeHttpClient(
-            config.v2ex_base_url, config.timeout_seconds, config.retries
+            site_config.base_url, config.timeout_seconds, config.retries
         )
-        self._referer = f"{config.v2ex_base_url}{_MISSION_PATH}"
+        self._referer = f"{site_config.base_url}{_MISSION_PATH}"
         self._secrets = config.secrets()
 
     @property
     def accounts(self):
         return self._accounts
 
-    def state_identity(self, account: V2exAccount):
-        return (account.username, account.cookie)
+    def state_identity(self, account: SiteAccount):
+        return account.secret_values()
 
-    def check(self, account: V2exAccount, account_label: str) -> CheckinResult:
+    def check(self, account: SiteAccount, account_label: str) -> CheckinResult:
         started = time.monotonic()
         retryable = False
         try:

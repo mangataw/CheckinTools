@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import requests
 from bs4 import BeautifulSoup
 
-from checkin_tools.config import AppConfig, FulibaAccount
+from checkin_tools.config import AppConfig, SiteAccount
 from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
@@ -44,9 +44,10 @@ class FulibaChecker(Checker):
     display_name = _SITE.display_name
 
     def __init__(self, config: AppConfig, client: SafeHttpClient | None = None) -> None:
-        self._accounts = config.fuliba_accounts
+        site_config = config.site(self.site)
+        self._accounts = site_config.accounts
         self.client = client or SafeHttpClient(
-            config.fuliba_base_url, config.timeout_seconds, config.retries
+            site_config.base_url, config.timeout_seconds, config.retries
         )
         self._secrets = config.secrets()
 
@@ -54,10 +55,10 @@ class FulibaChecker(Checker):
     def accounts(self):
         return self._accounts
 
-    def state_identity(self, account: FulibaAccount):
-        return (account.username, account.cookie)
+    def state_identity(self, account: SiteAccount):
+        return account.secret_values()
 
-    def check(self, account: FulibaAccount, account_label: str) -> CheckinResult:
+    def check(self, account: SiteAccount, account_label: str) -> CheckinResult:
         started = time.monotonic()
         retryable = False
         try:
