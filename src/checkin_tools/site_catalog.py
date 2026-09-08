@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 
@@ -115,6 +116,49 @@ SITE_DEFINITIONS = (
         default_base_url="https://www.v2ex.com",
     ),
 )
+
+_SITE_PATTERN = re.compile(r"[a-z0-9_]+")
+_ENV_KEY_PATTERN = re.compile(r"[A-Z][A-Z0-9_]+")
+
+
+def validate_site_definitions(
+    definitions: tuple[SiteDefinition, ...] = SITE_DEFINITIONS,
+) -> None:
+    """Reject catalog declarations that cannot be loaded or generated safely."""
+    if not definitions:
+        raise ValueError("site catalog must not be empty")
+
+    site_ids: set[str] = set()
+    config_keys: set[str] = set()
+    for definition in definitions:
+        if not _SITE_PATTERN.fullmatch(definition.site):
+            raise ValueError(f"invalid site id: {definition.site}")
+        if definition.site in site_ids:
+            raise ValueError(f"duplicate site id: {definition.site}")
+        site_ids.add(definition.site)
+        if not definition.credential_fields:
+            raise ValueError(f"site has no credential fields: {definition.site}")
+        if not definition.checker_module or not definition.checker_class:
+            raise ValueError(f"site has no checker declaration: {definition.site}")
+        if len(definition.qinglong_cron.split()) != 5:
+            raise ValueError(f"invalid Qinglong cron for site: {definition.site}")
+
+        field_names: set[str] = set()
+        for field in definition.credential_fields:
+            if not field.name or field.name in field_names:
+                raise ValueError(f"duplicate or empty credential field: {definition.site}")
+            field_names.add(field.name)
+            if not _ENV_KEY_PATTERN.fullmatch(field.env_key):
+                raise ValueError(f"invalid environment key: {field.env_key}")
+        if not _ENV_KEY_PATTERN.fullmatch(definition.base_url_key):
+            raise ValueError(f"invalid environment key: {definition.base_url_key}")
+        for key in definition.config_keys:
+            if key in config_keys:
+                raise ValueError(f"duplicate site configuration key: {key}")
+            config_keys.add(key)
+
+
+validate_site_definitions()
 
 SITE_IDS = tuple(definition.site for definition in SITE_DEFINITIONS)
 SITE_CONFIG_KEYS = frozenset(

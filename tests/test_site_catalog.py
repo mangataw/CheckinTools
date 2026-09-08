@@ -9,7 +9,10 @@ from checkin_tools.site_catalog import (
     SITE_CONFIG_KEYS,
     SITE_DEFINITIONS,
     SITE_IDS,
+    CredentialField,
+    SiteDefinition,
     site_definition,
+    validate_site_definitions,
 )
 
 
@@ -34,3 +37,38 @@ def test_checkers_use_catalog_identity():
 def test_site_definition_rejects_unknown_site():
     with pytest.raises(ValueError, match="unknown site"):
         site_definition("unknown")
+
+
+def test_catalog_validation_rejects_invalid_or_duplicate_declarations():
+    definition = SITE_DEFINITIONS[0]
+    duplicate_key = SiteDefinition(
+        site="example",
+        display_name="Example",
+        summary="Example",
+        documentation="docs/example.md",
+        checker_module="checkin_tools.checkers.example",
+        checker_class="ExampleChecker",
+        qinglong_task_name="Example",
+        credential_fields=(
+            CredentialField("cookie", definition.credential_keys[0], "Cookie", "x", "x"),
+        ),
+        base_url_key="EXAMPLE_BASE_URL",
+        default_base_url="https://example.com",
+    )
+    with pytest.raises(ValueError, match="duplicate site configuration key"):
+        validate_site_definitions((definition, duplicate_key))
+
+    invalid_id = SiteDefinition(
+        site="Invalid-Site",
+        display_name="Invalid",
+        summary="Invalid",
+        documentation="docs/invalid.md",
+        checker_module="invalid",
+        checker_class="InvalidChecker",
+        qinglong_task_name="Invalid",
+        credential_fields=(CredentialField("cookie", "INVALID_COOKIE", "Cookie", "x", "x"),),
+        base_url_key="INVALID_BASE_URL",
+        default_base_url="https://example.com",
+    )
+    with pytest.raises(ValueError, match="invalid site id"):
+        validate_site_definitions((invalid_id,))
