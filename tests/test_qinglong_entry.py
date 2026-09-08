@@ -28,12 +28,15 @@ def write_config(tmp_path, monkeypatch):
 
 def test_task_metadata_matches_catalog_and_shared_base_is_not_a_task():
     expected = {
-        f"checkin_task_{definition.site}.py": definition.qinglong_task_name
+        f"checkin_task_{definition.site}.py": (
+            definition.qinglong_task_name,
+            definition.qinglong_cron,
+        )
         for definition in SITE_DEFINITIONS
     }
-    for filename, name in expected.items():
+    for filename, (name, cron) in expected.items():
         source = (TASK_DIR / filename).read_text(encoding="utf-8")
-        assert "cron: 30 0,8 * * *" in source
+        assert f"cron: {cron}" in source
         assert f"new Env('{name}')" in source
     base_source = Path(checkin_base.__file__).read_text(encoding="utf-8")
     assert "new Env(" not in base_source
@@ -146,8 +149,26 @@ def test_site_configuration_and_qinglong_local_dates():
     first_run = datetime(2026, 9, 5, 0, 30, tzinfo=local_zone)
     second_run = datetime(2026, 9, 5, 8, 30, tzinfo=local_zone)
     for site in SITE_IDS:
-        assert checkin_base._state_date(site, first_run) == "2026-09-05"
+        expected = "2026-09-04" if site == "v2ex" else "2026-09-05"
+        assert checkin_base._state_date(site, first_run) == expected
         assert checkin_base._state_date(site, second_run) == "2026-09-05"
+
+
+def test_v2ex_state_expires_at_utc_midnight(tmp_path):
+    from checkin_tools.state import DailyState, load_daily_state, save_daily_state
+
+    local_zone = timezone(timedelta(hours=8))
+    before = datetime(2026, 9, 8, 7, 59, 59, tzinfo=local_zone)
+    after = datetime(2026, 9, 8, 8, 0, tzinfo=local_zone)
+    path = tmp_path / "v2ex-state.json"
+    key = "v2ex:account-test"
+    save_daily_state(path, DailyState(checkin_base._state_date("v2ex", before), {key}))
+    assert load_daily_state(
+        path, checkin_base._state_date("v2ex", before)
+    ).terminal_accounts == {key}
+    assert not load_daily_state(
+        path, checkin_base._state_date("v2ex", after)
+    ).terminal_accounts
 
 
 def test_run_site_uses_its_own_state_and_lock(tmp_path, monkeypatch):

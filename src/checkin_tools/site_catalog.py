@@ -96,6 +96,9 @@ SITE_DEFINITIONS = (
         checker_module="checkin_tools.checkers.v2ex",
         checker_class="V2exChecker",
         qinglong_task_name="CheckinTools - V2EX 签到",
+        # Qinglong evaluates this in the container timezone. With the documented
+        # Asia/Shanghai setup these are 00:30 and 08:30 UTC, after V2EX rolls over.
+        qinglong_cron="30 8,16 * * *",
         credential_fields=(
             CredentialField(
                 "username",

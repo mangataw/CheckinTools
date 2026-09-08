@@ -1,5 +1,5 @@
 """
-cron: 30 0,8 * * *
+cron: 30 8,16 * * *
 new Env('CheckinTools - V2EX 签到');
 """
 
