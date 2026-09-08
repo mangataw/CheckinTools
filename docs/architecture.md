@@ -45,7 +45,8 @@ CheckinTools/
 │  ├─ site_catalog.py             # 内置站点 ID、名称、凭据键与默认地址
 │  └─ state.py                    # 每日成功状态的读取和保存
 ├─ tests/                         # 核心代码、工作流与青龙入口测试
-├─ .env.example                   # 本地配置示例
+├─ tools/sync_sites.py            # 从站点清单同步静态平台文件
+├─ .env.example                   # 自动生成的本地配置示例
 ├─ pyproject.toml                 # 包信息、依赖和工具配置
 └─ README.md                      # 项目入口和使用概览
 ```
@@ -60,7 +61,7 @@ Actions 直接注入 Secrets 和 Variables；青龙入口读取持久化的
 
 配置层负责：
 
-- 拆分多账号值并校验用户名与 Cookie 数量。
+- 按站点清单拆分多账号字段，并校验同一账号的字段数量。
 - 校验基础地址、超时、重试次数及通知选项。
 - 汇总需要从日志和 CI 输出中遮罩的凭据。
 
@@ -69,14 +70,16 @@ Actions 直接注入 Secrets 和 Variables；青龙入口读取持久化的
 
 ### 3.2 组件构建
 
-`site_catalog.py` 是内置站点元数据的唯一来源。CLI 站点选项、Checker 身份、默认地址、配置键和
-青龙运行桥接都从该目录读取。`checkers.build_checkers()` 按目录顺序创建内置站点检查器；
+`site_catalog.py` 是内置站点元数据的唯一来源。CLI 站点选项、Checker 加载路径、默认地址、配置键
+和青龙运行桥接都从该清单读取。`config.py` 按清单统一构建 `SiteConfig` 和 `SiteAccount`；
+`checkers.build_checkers()` 按清单顺序加载并创建内置站点检查器；
 `notifiers.build_notifiers()` 根据通知配置选择钉钉、飞书或两者。`registry.py` 将实例转成按
 站点或渠道名称索引的映射，并拒绝重复名称。
 
-Checker 类仍需要显式导入和注册，GitHub Actions 下拉选项及青龙任务文件也属于静态平台配置。
-新增 Python 文件本身不会自动接入这些部分；测试会根据站点目录检查它们是否保持同步。自动扫描
-和 Python 插件机制的取舍参阅 [站点注册与插件机制决策](extension-strategy.md)。
+`tools/sync_sites.py` 将清单转换成必须提交的静态平台文件，包括配置模板、青龙入口、GitHub
+Actions 选项与 Secrets 映射，以及 README 和青龙教程中的站点区块。CI 使用 `--check` 确认生成
+结果已提交。新增站点仍需编写业务 Checker 和行为测试；自动扫描与 Python 插件机制的取舍参阅
+[站点注册与插件机制决策](extension-strategy.md)。
 
 ### 3.3 账号执行与故障隔离
 
@@ -136,8 +139,8 @@ GitHub Actions 使用北京时间生成状态日期。青龙使用容器当地�
 ## 6. 当前扩展边界
 
 新增同类签到站点通常可以复用 `Checker`、`SafeHttpClient`、`Runner`、通知和状态能力。站点
-元数据集中在 `site_catalog.py`；账号数据结构和解析仍由配置模型实现，Checker 类、GitHub
-Actions、青龙静态任务入口及配置模板也需要同步。完整清单和最小实现示例参阅
+元数据集中在 `site_catalog.py`；账号解析、Checker 加载及静态平台文件由清单和同步工具接入。
+开发者只需手工实现站点业务、行为测试和站点专用说明，再运行同步工具。完整步骤参阅
 [新增签到站点指南](adding-a-site.md)。
 
 当前状态模型围绕“每个账号每天一次”的签到任务设计。若加入下载、备份、监控或一天多阶段执行

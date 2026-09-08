@@ -31,6 +31,7 @@ def test_ci_never_references_checkin_or_notification_secrets():
     ):
         assert secret not in contents
     assert "contents: read" in contents
+    assert "python tools/sync_sites.py --check" in contents
 
 
 def test_checkin_schedule_and_manual_sites_are_present():

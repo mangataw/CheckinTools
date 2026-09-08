@@ -1,71 +1,73 @@
 # 新增签到站点指南
 
-本文说明如何在当前架构中加入一个新的每日签到站点。以下示例使用站点标识 `example`；实际
-标识建议使用小写英文字母、数字和下划线，并在代码、CLI、状态文件及平台入口中保持一致。
+当前架构将站点接入收敛为三个手工部分：在统一清单声明站点、实现业务 Checker、补充行为测试和
+站点专用说明。配置解析、Checker 注册、本地模板、GitHub Actions、青龙入口及公共文档索引由
+`tools/sync_sites.py` 统一处理。
 
-站点 ID、显示名称、青龙任务标题、凭据键和默认地址集中保存在 `site_catalog.py`。Checker 类、
-账号解析、GitHub Actions 选项、青龙静态入口、模板及文档仍需显式维护，不能只添加一个
-Checker 文件。当前不自动扫描站点模块，原因及未来插件化条件参阅
-[站点注册与插件机制决策](extension-strategy.md)。
+以下示例使用站点 ID `example`。ID 只能使用小写英文字母、数字和下划线，并应与 Checker 文件名
+一致。
 
-## 1. 开始前确认任务适用
+## 1. 确认任务适用
 
-现有框架适合以下任务：
+现有框架适合每个账号每天执行一次、能够验证“本次成功”或“今天已经完成”的任务。失败账号可在
+当天后续调度中重试，账号凭据通过环境变量或青龙集中配置提供。
 
-- 每个账号每天完成一次操作。
-- 能从页面或接口获取明确的“本次成功”或“今天已经完成”证据。
-- 失败账号可以在当天后续定时执行中重试。
-- 账号凭据可以通过环境变量或青龙集中配置提供。
-
-如果任务需要每小时持续运行、多阶段状态、文件产物、人工验证码处理或跨天队列，先设计独立的
-任务和状态语义，不要直接套用每日签到终态，具体参阅
+每小时监控、多阶段状态、文件产物、验证码或跨天队列需要独立任务语义，参阅
 [非签到任务扩展边界](non-checkin-tasks.md)。
 
-## 2. 定义配置
+## 2. 在统一清单声明站点
 
-先在 `src/checkin_tools/site_catalog.py` 的 `SITE_DEFINITIONS` 增加站点定义，填写唯一站点 ID、
-显示名称、青龙任务标题、凭据键、基础地址变量和默认 HTTPS 地址。
-
-再在 `src/checkin_tools/config.py` 中完成以下修改：
-
-1. 根据账号字段决定是否新增账号数据类。只有 Cookie 的站点可以直接使用字符串元组；用户名与
-   Cookie 成对的站点应使用冻结的数据类。
-2. 在 `AppConfig` 增加账号集合和基础地址等字段。
-3. 在 `load_config()` 中拆分环境变量，并校验必填项、配对数量和允许范围。
-4. 从 `site_definition()` 读取基础地址变量和默认值，并使用 `validate_base_url()` 校验。
-5. 在 `AppConfig.secrets()` 中加入用户名、Cookie、Token 等需要脱敏的值。
-
-`load_config(selected_site=...)` 会忽略其他站点的账号与基础地址。新增站点的解析逻辑也要遵循该
-范围，确保运行其他站点时不会被本地无关配置阻断。
-
-例如，只有 Cookie 的站点通常需要：
+只在 `src/checkin_tools/site_catalog.py` 的 `SITE_DEFINITIONS` 增加一项：
 
 ```python
-@dataclass(frozen=True, slots=True)
-class AppConfig:
-    example_cookies: tuple[str, ...]
-    example_base_url: str
-    # 其他已有字段
+SiteDefinition(
+    site="example",
+    display_name="Example",
+    summary="Example 每日签到",
+    documentation="docs/example.md",
+    checker_module="checkin_tools.checkers.example",
+    checker_class="ExampleChecker",
+    qinglong_task_name="CheckinTools - Example 签到",
+    credential_fields=(
+        CredentialField(
+            "username",
+            "EXAMPLE_USERNAMES",
+            "用户名",
+            r"example_user_one\nexample_user_two",
+            "Example 用户名，每行一个",
+        ),
+        CredentialField(
+            "cookie",
+            "EXAMPLE_COOKIES",
+            "Cookie",
+            r"example_cookie_one\nexample_cookie_two",
+            "Example Cookie，与用户名按行对应",
+        ),
+    ),
+    base_url_key="EXAMPLE_BASE_URL",
+    default_base_url="https://example.com",
+)
 ```
 
-环境变量建议使用一致的前缀：
+清单字段分别控制：
 
-```dotenv
-EXAMPLE_COOKIES="first-cookie\nsecond-cookie"
-EXAMPLE_BASE_URL=https://example.com
-```
+| 字段 | 用途 |
+| --- | --- |
+| `site` | CLI 参数、状态文件及青龙入口文件名 |
+| `display_name` / `summary` | 运行结果和 README 展示文字 |
+| `documentation` | README 中的站点文档链接 |
+| `checker_module` / `checker_class` | 受信任的 Checker 加载路径 |
+| `qinglong_task_name` / `qinglong_cron` | 青龙任务标题和调度；cron 不填时使用默认值 |
+| `credential_fields` | 账号字段、环境变量、示例和说明；多个字段按行组合 |
+| `base_url_key` / `default_base_url` | 可覆盖的 HTTPS 站点根地址 |
 
-同时更新根目录 `.env.example` 和 `qinglong/checkin-tools.env`。公开模板只能放占位值，不能提交
-真实用户名、Cookie、Token、Webhook 或页面 fixture 中的个人信息。
-
-青龙入口会拒绝模板之外的未知字段。站点目录中的凭据键和基础地址键会自动进入允许列表；若新增
-的是站点目录之外的运行选项，仍需将其加入 `APP_CONFIG_KEYS` 或青龙专用配置键。订阅的“执行
-后”初始化脚本会把模板中的缺失赋值追加到旧用户的持久化配置；站点文档需要说明新增字段的用途
-及填写方式。
+所有账号字段都按行读取。一个站点有多个字段时，每个变量必须具有相同的非空行数；通用配置层会
+构造 `SiteAccount`，自动将字段加入脱敏集合，并让单站点运行忽略其他站点的无效配置。不需要修改
+`config.py` 或新增账号数据类。
 
 ## 3. 实现 Checker
 
-在 `src/checkin_tools/checkers/example.py` 新建检查器并实现 `Checker` 接口。最小结构如下：
+新建 `src/checkin_tools/checkers/example.py`：
 
 ```python
 from __future__ import annotations
@@ -74,11 +76,11 @@ import time
 
 import requests
 
+from checkin_tools.config import AppConfig, SiteAccount
 from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
 from checkin_tools.site_catalog import site_definition
-
 
 _SITE = site_definition("example")
 
@@ -87,27 +89,29 @@ class ExampleChecker(Checker):
     site = _SITE.site
     display_name = _SITE.display_name
 
-    def __init__(self, config, client: SafeHttpClient | None = None) -> None:
-        self._accounts = config.example_cookies
+    def __init__(self, config: AppConfig, client: SafeHttpClient | None = None) -> None:
+        site_config = config.site(self.site)
+        self._accounts = site_config.accounts
         self.client = client or SafeHttpClient(
-            config.example_base_url,
+            site_config.base_url,
             config.timeout_seconds,
             config.retries,
         )
+        self._secrets = config.secrets()
 
     @property
     def accounts(self):
         return self._accounts
 
-    def state_identity(self, account: str):
-        return (account,)
+    def state_identity(self, account: SiteAccount):
+        return account.secret_values()
 
-    def check(self, account: str, account_label: str) -> CheckinResult:
+    def check(self, account: SiteAccount, account_label: str) -> CheckinResult:
         started = time.monotonic()
         try:
             session = self.client.new_session()
-            session.headers.update({"Cookie": account})
-            # 读取签到前状态、验证登录身份、执行签到并读取签到后状态。
+            session.headers.update({"Cookie": account.cookie})
+            # 验证登录身份，读取签到前状态，执行操作，再读取可确认的签到后证据。
             status = ResultStatus.SUCCESS
             summary = "checked in and confirmed"
             retryable = False
@@ -133,117 +137,78 @@ class ExampleChecker(Checker):
         )
 ```
 
-示例中的业务部分只是结构占位，实际实现必须满足以下约束：
+Checker 使用 `account.value("字段名")` 读取任意声明字段；常用的 `username` 和 `cookie` 也提供同名
+属性。业务实现必须满足以下约束：
 
-- 每个账号创建独立 Session，避免 Cookie 和请求状态相互污染。
-- 实现 `state_identity()` 并返回稳定的凭据材料；内容只用于生成匿名状态指纹，不能写入日志。
-- 使用 `SafeHttpClient` 生成和检查地址，携带凭据的请求不得绕过 HTTPS 与同主机限制。
-- 操作前验证 Cookie 对应的登录身份或其他可靠登录状态。
-- `SUCCESS` 必须有操作后的站点证据，HTTP 200 本身不能作为成功依据。
-- `ALREADY_DONE` 必须来自操作前的当日状态证据，并且不能再提交签到请求。
-- 页面结构变化、身份不符、缺少成功证据均返回 `FAILED`。
-- 结果与异常信息不能包含用户名、Cookie、一次性 Token 或带敏感查询参数的完整 URL。
-- 网络超时及连接错误可以标记 `retryable=True`；身份失效、结构变化和不安全地址通常不可重试。
+- 每个账号创建独立 Session。
+- 操作前验证凭据对应的登录身份。
+- `SUCCESS` 必须来自操作后的站点证据，HTTP 200 本身不代表成功。
+- `ALREADY_DONE` 必须来自操作前的当日证据，并且不能再次提交签到请求。
+- 使用 `SafeHttpClient` 限制 HTTPS、目标主机和重定向。
+- 日志、摘要和异常不能包含账号字段、Token 或带敏感查询参数的 URL。
+- 网络错误可标记为可重试；身份失效、结构变化和不安全地址通常不可重试。
 
-Runner 会隔离未处理异常并进行脱敏，但 Checker 应优先把预期错误转换成稳定、无凭据的摘要。
+Checker 不需要在 `checkers/__init__.py` 再注册。构建器会根据清单中的模块和类名加载，并检查
+Checker 的 `site` 是否一致。
 
-## 4. 注册到核心 CLI
+## 4. 生成平台文件
 
-在 `src/checkin_tools/checkers/__init__.py` 导入新类，将类型加入 `_CHECKER_TYPES`，并按需加入
-`__all__`。`build_checkers()` 会按站点目录顺序创建实例，并检查注册项与目录一致。CLI 的
-`run --site` choices 会自动读取站点目录，不需要再单独修改。
-
-此时以下命令应能够解析和运行：
+完成清单声明后运行：
 
 ```bash
-python -m checkin_tools validate-config
+python tools/sync_sites.py
+python tools/sync_sites.py --check
+```
+
+同步工具负责：
+
+- 更新 `.env.example` 和 `qinglong/checkin-tools.env`。
+- 创建 `qinglong/DefaultTasks/checkin_task_example.py`。
+- 更新 GitHub Actions 手动站点选项和 Repository Secrets 映射。
+- 更新 README 的站点列表、Secrets 表、运行命令和站点文档入口。
+- 更新青龙教程的账号变量表和状态文件列表。
+- 删除已从清单移除、且带生成标记的旧青龙入口。
+
+生成文件及 `BEGIN GENERATED` / `END GENERATED` 区块不能手工维护。CI 会执行 `--check`，清单修改后
+未提交生成结果会直接失败。
+
+青龙订阅使用通用白名单 `checkin_task_[a-z0-9_]+[.]py`。已经采用该白名单的用户新增站点时无需
+再次修改订阅；旧用户如果仍保存逐站点白名单，需要更新一次。订阅初始化脚本会把新变量追加到
+现有持久化配置，但真实用户名、Cookie 和 Token 仍须由用户填写。GitHub Repository Secrets 也
+必须由仓库管理员手工创建；同步工具只生成工作流引用。
+
+## 5. 添加行为测试和站点说明
+
+将脱敏响应放入 `tests/fixtures/`，并为 Checker 覆盖真正影响行为的边界：
+
+- 未签到时执行请求并获得可靠证据，返回 `SUCCESS`。
+- 操作前已经签到，返回 `ALREADY_DONE`，且不发送签到请求。
+- Cookie 无效或登录身份不匹配，返回 `FAILED`。
+- 页面结构变化或签到后缺少确认依据，返回 `FAILED`。
+- 外部主机、HTTP 降级或不安全操作链接被阻止。
+- 超时和连接错误不泄露凭据，并正确设置 `retryable`。
+- 多账号 Session 和失败相互隔离。
+
+新增 `docs/example.md`，说明参数、多账号格式、凭据获取方法、本地测试命令、成功判断依据、服务
+日期时区以及验证码和风控限制。README 的文档链接由清单生成，文件内容仍需人工编写。
+
+## 6. 完成检查
+
+```bash
+python tools/sync_sites.py --check
+python -m ruff check .
+python -m pytest --cov=checkin_tools --cov-report=term-missing
 python -m checkin_tools run --site example --no-notify
 ```
 
-`validate-config` 检查整体配置。当前实现中，其他已填写站点的无效配置也可能阻止单站点运行。
+提交前确认：
 
-## 5. 接入 GitHub Actions
+- [ ] 清单声明完整，生成文件已经同步。
+- [ ] Checker 使用站点证据确认成功并正确处理已签到状态。
+- [ ] fixture 和行为测试不含真实个人信息。
+- [ ] 站点专用文档已经创建。
+- [ ] GitHub 和青龙中的真实账号参数由管理员填写。
+- [ ] 使用测试账号完成一次无通知实机验证，输出中没有凭据。
 
-修改 `.github/workflows/checkin.yml`：
-
-1. 在 `workflow_dispatch.inputs.site.options` 中加入 `example`。
-2. 在运行步骤的 `env` 中映射该站点所需 Repository secrets。
-3. 只有非敏感选项才使用 Repository variables。
-
-CI 工作流不得引用真实签到或通知 Secrets。同步更新 `tests/test_workflows.py`，验证新站点出现在
-手动选择项中、所需 Secrets 只注入签到工作流，并继续保留最小权限。
-
-## 6. 接入青龙
-
-新增 `qinglong/DefaultTasks/checkin_task_example.py`：
-
-```python
-"""
-cron: 30 0,8 * * *
-new Env('CheckinTools - Example 签到');
-"""
-
-from checkin_base import run_site
-
-if __name__ == "__main__":
-    raise SystemExit(run_site("example"))
-```
-
-然后完成以下同步：
-
-1. 更新 README 和 `docs/qinglong.md` 中订阅白名单的站点正则。
-2. 更新青龙教程中的任务数量、入口文件、配置变量和状态文件说明。
-3. 更新 `tests/test_qinglong_entry.py` 中入口文件、订阅匹配、配置模板和运行桥接断言。
-
-青龙的站点合法性、账号配置判断和站点配置键会从站点目录读取，不需要维护另一份站点集合。
-
-已保存旧订阅的用户需要手动更新白名单，新入口才会被青龙拉取并注册为任务。已有
-`/ql/data/config/checkin-tools.env` 不会被模板覆盖；订阅初始化脚本会自动追加模板中的缺失变量，
-用户再填写新站点所需的空值。
-
-## 7. 添加测试 fixture 与行为测试
-
-将脱敏后的站点响应放入 `tests/fixtures/`，并在 `tests/test_checkers.py` 或独立测试文件中覆盖真正
-影响行为的边界：
-
-- 未签到状态经过请求后得到可靠证据，返回 `SUCCESS`。
-- 操作前已经签到，返回 `ALREADY_DONE`，且没有发送签到请求。
-- Cookie 无效或登录身份不匹配，返回 `FAILED`。
-- 页面结构改变或签到后没有确认依据，返回 `FAILED`。
-- 外部主机、HTTP 降级或不安全操作链接被阻止。
-- 超时和连接错误不泄露原始异常或凭据，并正确设置 `retryable`。
-- 多账号使用独立 Session，账号失败不会影响其他账号。
-
-同时更新配置、CLI、工作流和青龙入口测试。fixture 中删除用户名、Cookie、Token、邮箱、IP 等
-真实信息；日期和余额等业务字段使用构造值。
-
-## 8. 补充用户文档
-
-新增 `docs/example.md`，至少说明：
-
-- 所需配置及多账号格式。
-- 从浏览器安全获取 Cookie 或 Token 的步骤。
-- 本地无通知测试命令。
-- `SUCCESS` 和 `ALREADY_DONE` 的具体判断依据。
-- Cookie 失效、验证码、风控和页面结构变化等限制。
-
-同步更新 README 的支持功能、Secrets 表、本地命令和详细文档列表。若站点的服务日期与调度日期
-不同，应明确说明采用的时区以及它如何影响成功确认。
-
-## 9. 完成检查
-
-提交前按以下清单核对：
-
-- [ ] 站点目录以及配置字段、校验、脱敏和两个配置模板已经同步。
-- [ ] Checker 返回统一结果，并使用站点证据确认成功。
-- [ ] 新 Checker 类型已注册，目录一致性检查和 CLI choices 已覆盖该站点。
-- [ ] GitHub Actions 手动选项与 Secrets 映射已经添加。
-- [ ] 青龙入口、订阅白名单和教程已经同步。
-- [ ] 行为、配置、CLI、工作流及青龙测试已经覆盖。
-- [ ] README 和独立站点文档已经更新。
-- [ ] `python -m ruff check .` 通过。
-- [ ] `python -m pytest --cov=checkin_tools --cov-report=term-missing` 通过。
-- [ ] 使用测试账号执行 `--site example --no-notify`，确认不会泄露凭据。
-
-真实签到测试可能改变外部账号状态，只在明确授权并准备好测试凭据后执行。测试成功后再分别验证
-GitHub Actions 手动任务和青龙独立任务。
+真实签到会改变外部账号状态，只在准备好测试凭据并授权后执行。随后分别验证 GitHub Actions 手动
+任务和青龙独立任务。
