@@ -11,6 +11,8 @@ class CredentialField:
 
     name: str
     env_key: str
+    display_name: str
+    example: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +25,7 @@ class SiteDefinition:
     credential_fields: tuple[CredentialField, ...]
     base_url_key: str
     default_base_url: str
+    qinglong_cron: str = "30 0,8 * * *"
 
     @property
     def credential_keys(self) -> tuple[str, ...]:
@@ -40,7 +43,14 @@ SITE_DEFINITIONS = (
         checker_module="checkin_tools.checkers.javbus",
         checker_class="JavBusChecker",
         qinglong_task_name="CheckinTools - JavBus 签到",
-        credential_fields=(CredentialField("cookie", "JAVBUS_COOKIES"),),
+        credential_fields=(
+            CredentialField(
+                "cookie",
+                "JAVBUS_COOKIES",
+                "Cookie",
+                r"example_cookie_one\nexample_cookie_two",
+            ),
+        ),
         base_url_key="JAVBUS_BASE_URL",
         default_base_url="https://www.javbus.com",
     ),
@@ -51,8 +61,18 @@ SITE_DEFINITIONS = (
         checker_class="FulibaChecker",
         qinglong_task_name="CheckinTools - 福利吧签到",
         credential_fields=(
-            CredentialField("username", "FULIBA_USERNAMES"),
-            CredentialField("cookie", "FULIBA_COOKIES"),
+            CredentialField(
+                "username",
+                "FULIBA_USERNAMES",
+                "用户名",
+                r"example_user_one\nexample_user_two",
+            ),
+            CredentialField(
+                "cookie",
+                "FULIBA_COOKIES",
+                "Cookie",
+                r"example_cookie_one\nexample_cookie_two",
+            ),
         ),
         base_url_key="FULIBA_BASE_URL",
         default_base_url="https://www.wnflb2023.com",
@@ -64,8 +84,18 @@ SITE_DEFINITIONS = (
         checker_class="V2exChecker",
         qinglong_task_name="CheckinTools - V2EX 签到",
         credential_fields=(
-            CredentialField("username", "V2EX_USERNAMES"),
-            CredentialField("cookie", "V2EX_COOKIES"),
+            CredentialField(
+                "username",
+                "V2EX_USERNAMES",
+                "用户名",
+                r"example_user_one\nexample_user_two",
+            ),
+            CredentialField(
+                "cookie",
+                "V2EX_COOKIES",
+                "Cookie",
+                r"example_cookie_one\nexample_cookie_two",
+            ),
         ),
         base_url_key="V2EX_BASE_URL",
         default_base_url="https://www.v2ex.com",
