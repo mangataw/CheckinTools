@@ -68,6 +68,13 @@ python -m checkin_tools run --site all
 python -m checkin_tools notify-test --channel dingtalk
 ```
 
+每次修改 `src/checkin_tools/sites.toml` 后，必须运行以下命令，并将生成文件与清单一起提交：
+
+```text
+python tools/sync_sites.py
+python tools/sync_sites.py --check
+```
+
 GitHub Actions 默认计划时间为北京时间 09:00 和 14:00；平台负载可能导致延迟。青龙任务的 cron
 和状态日期时区来自站点清单。
 
