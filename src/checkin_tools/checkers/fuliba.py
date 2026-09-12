@@ -15,7 +15,7 @@ from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.interfaces import Checker
 from checkin_tools.models import CheckinResult, ResultStatus
 from checkin_tools.security import sanitize_text
-from checkin_tools.site_catalog import site_definition
+from checkin_tools.site_catalog import SiteDefinition, site_definition
 
 _HOME_PATH = "/forum.php?mobile=no"
 _SIGNED_MARKERS = (
@@ -36,14 +36,17 @@ class _AccountState:
     signed_today: bool
 
 
-_SITE = site_definition("fuliba")
-
-
 class FulibaChecker(Checker):
-    site = _SITE.site
-    display_name = _SITE.display_name
-
-    def __init__(self, config: AppConfig, client: SafeHttpClient | None = None) -> None:
+    def __init__(
+        self,
+        config: AppConfig,
+        client: SafeHttpClient | None = None,
+        *,
+        definition: SiteDefinition | None = None,
+    ) -> None:
+        definition = definition or site_definition("fuliba")
+        self.site = definition.id
+        self.display_name = definition.display_name
         site_config = config.site(self.site)
         self._accounts = site_config.accounts
         self.client = client or SafeHttpClient(
@@ -209,3 +212,6 @@ class FulibaChecker(Checker):
             max(0.0, time.monotonic() - started),
             retryable,
         )
+
+
+SiteChecker = FulibaChecker

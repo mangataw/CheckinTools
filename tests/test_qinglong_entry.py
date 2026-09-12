@@ -28,8 +28,8 @@ def write_config(tmp_path, monkeypatch):
 
 def test_task_metadata_matches_catalog_and_shared_base_is_not_a_task():
     expected = {
-        f"checkin_task_{definition.site}.py": (
-            definition.qinglong_task_name,
+        f"checkin_task_{definition.id}.py": (
+            f"CheckinTools - {definition.display_name} 签到",
             definition.qinglong_cron,
         )
         for definition in SITE_DEFINITIONS

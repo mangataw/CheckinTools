@@ -33,28 +33,36 @@ def test_sync_only_removes_stale_generated_tasks(tmp_path):
 
 
 def test_check_mode_does_not_write(tmp_path):
-    expected = tmp_path / ".env.example"
+    expected = tmp_path / "qinglong" / "checkin-tools.env"
     assert expected in sync_sites.sync_sites(tmp_path, check=True)
     assert not expected.exists()
 
 
-def test_sync_repairs_managed_blocks(tmp_path):
-    for relative in (
-        ".github/workflows/checkin.yml",
-        "README.md",
-        "docs/qinglong.md",
-    ):
-        source = sync_sites.REPO_ROOT / relative
-        destination = tmp_path / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-
+def test_sync_only_manages_actions_and_qinglong(tmp_path):
     workflow = tmp_path / ".github" / "workflows" / "checkin.yml"
+    workflow.parent.mkdir(parents=True)
     workflow.write_text(
-        workflow.read_text(encoding="utf-8").replace("          - javbus", "          - drift"),
+        (sync_sites.REPO_ROOT / ".github" / "workflows" / "checkin.yml").read_text(
+            encoding="utf-8"
+        ),
         encoding="utf-8",
     )
+    readme = tmp_path / "README.md"
+    guide = tmp_path / "docs" / "qinglong.md"
+    guide.parent.mkdir(parents=True)
+    readme.write_text("manual README", encoding="utf-8")
+    guide.write_text("manual guide", encoding="utf-8")
 
-    assert workflow in sync_sites.sync_sites(tmp_path, check=True)
     sync_sites.sync_sites(tmp_path)
-    assert sync_sites.sync_sites(tmp_path, check=True) == ()
+
+    assert readme.read_text(encoding="utf-8") == "manual README"
+    assert guide.read_text(encoding="utf-8") == "manual guide"
+    assert not (tmp_path / ".env.example").exists()
+
+
+def test_ci_workflow_does_not_reference_checkin_secrets():
+    ci = (sync_sites.REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+    for definition in sync_sites.SITE_DEFINITIONS:
+        assert all(env_key not in ci for env_key in definition.credentials.values())

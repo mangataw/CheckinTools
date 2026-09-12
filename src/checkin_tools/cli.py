@@ -38,22 +38,24 @@ def main(
     argv: list[str] | None = None,
     *,
     environ: Mapping[str, str] | None = None,
-    load_local_dotenv: bool = True,
+    load_local_dotenv: bool = False,
 ) -> int:
     args = build_parser().parse_args(argv)
     selected_site = (
         args.site if args.command == "run" and args.site != "all" else None
     )
     try:
-        config = (
-            load_config(selected_site=selected_site)
-            if environ is None and load_local_dotenv
-            else load_config(
+        if environ is None:
+            config = load_config(
+                selected_site=selected_site,
+                **({"load_local_dotenv": True} if load_local_dotenv else {}),
+            )
+        else:
+            config = load_config(
                 environ,
                 load_local_dotenv=load_local_dotenv,
                 selected_site=selected_site,
             )
-        )
     except ConfigError as exc:
         configure_logging()
         logging.error("invalid configuration: %s", exc)

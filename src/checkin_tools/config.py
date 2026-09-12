@@ -101,7 +101,7 @@ class AppConfig:
 
     def site(self, site: str) -> SiteConfig:
         try:
-            return next(config for config in self.sites if config.definition.site == site)
+            return next(config for config in self.sites if config.definition.id == site)
         except StopIteration as exc:
             raise ValueError(f"unknown site: {site}") from exc
 
@@ -176,9 +176,10 @@ def _load_site_config(
     *,
     enabled: bool,
 ) -> SiteConfig:
+    credential_fields = tuple(definition.credentials.items())
     columns = [
-        _lines(environ.get(field.env_key)) if enabled else ()
-        for field in definition.credential_fields
+        _lines(environ.get(env_key)) if enabled else ()
+        for _, env_key in credential_fields
     ]
     lengths = {len(column) for column in columns}
     if len(lengths) > 1:
@@ -188,8 +189,10 @@ def _load_site_config(
     accounts = tuple(
         SiteAccount(
             tuple(
-                (field.name, column[index])
-                for field, column in zip(definition.credential_fields, columns, strict=True)
+                (logical_name, column[index])
+                for (logical_name, _), column in zip(
+                    credential_fields, columns, strict=True
+                )
             )
         )
         for index in range(len(columns[0]) if columns else 0)
@@ -199,7 +202,7 @@ def _load_site_config(
         definition=definition,
         accounts=accounts,
         base_url=validate_base_url(
-            raw_url or definition.default_base_url,
+            raw_url or definition.base_url,
             definition.base_url_key,
         ),
     )
@@ -208,7 +211,7 @@ def _load_site_config(
 def load_config(
     environ: Mapping[str, str] | None = None,
     *,
-    load_local_dotenv: bool = True,
+    load_local_dotenv: bool = False,
     selected_site: str | None = None,
 ) -> AppConfig:
     if environ is None:
@@ -225,7 +228,7 @@ def load_config(
         _load_site_config(
             definition,
             environ,
-            enabled=selected is None or selected.site == definition.site,
+            enabled=selected is None or selected.id == definition.id,
         )
         for definition in SITE_DEFINITIONS
     )

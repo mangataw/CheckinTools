@@ -6,8 +6,9 @@ import os
 import sys
 from collections.abc import Mapping
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 DEFAULT_CONFIG_FILE = Path("/ql/data/config/checkin-tools.env")
 QINGLONG_CONFIG_KEYS = {"CHECKIN_QINGLONG_DATA_DIR"}
@@ -70,11 +71,14 @@ def _site_is_configured(site: str, settings: Mapping[str, str]) -> bool:
 
 
 def _state_date(site: str, now: datetime | None = None) -> str:
-    """Match V2EX's UTC service day; other sites use the container local date."""
+    """Return the catalog-configured state date for a site."""
+    from checkin_tools.site_catalog import site_definition
+
+    definition = site_definition(site)
     now = now or datetime.now().astimezone()
-    if site == "v2ex":
-        return now.astimezone(timezone.utc).date().isoformat()
-    return now.date().isoformat()
+    if definition.state_timezone == "local":
+        return now.astimezone().date().isoformat()
+    return now.astimezone(ZoneInfo(definition.state_timezone)).date().isoformat()
 
 
 @contextmanager

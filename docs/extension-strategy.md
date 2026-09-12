@@ -9,18 +9,17 @@
 CheckinTools 同时支持本地 CLI、GitHub Actions 和青龙 Docker。平台需要静态 YAML、任务文件和
 配置模板，但站点信息如果分别维护，很容易在新增站点时遗漏一处。
 
-项目将所有内置站点声明集中到 `src/checkin_tools/site_catalog.py`，并使用
+项目将所有内置站点声明集中到 `src/checkin_tools/sites.toml`，并使用
 `tools/sync_sites.py` 生成静态接入内容。目标是让站点业务保持独立，同时消除账号解析、注册表和
 平台枚举中的重复定义。
 
 ## 2. 当前决策
 
-1. `site_catalog.py` 是内置站点元数据的唯一来源，声明 ID、展示文字、Checker 路径、账号字段、
-   基础地址、青龙任务和文档路径。
+1. `sites.toml` 是内置站点静态元数据的唯一来源，声明 ID、展示名称、账号字段、基础地址、青龙
+   cron 和状态时区；Checker 模块、入口类和文件名由 ID 约定推导。
 2. `config.py` 按清单统一解析行式账号字段，构造 `SiteConfig` 与 `SiteAccount`，并统一收集脱敏值。
 3. `checkers.build_checkers()` 从受信任清单加载 Checker，并验证类继承关系和站点 ID。
-4. `sync_sites.py` 生成配置模板、青龙任务入口、Actions 站点选项与 Secrets 映射，以及公共文档
-   中的站点区块。
+4. `sync_sites.py` 只生成青龙配置模板、青龙任务入口、Actions 站点选项与 Secrets 映射。
 5. 生成后的静态文件提交到仓库，CI 使用 `sync_sites.py --check` 阻止清单和生成结果漂移。
 6. 站点请求、页面解析、成功证据、fixture、行为测试和专用说明仍由开发者实现。
 
@@ -36,8 +35,8 @@ GitHub Actions 在解析工作流时不能运行项目 Python；青龙订阅也�
 | 用户配置模块路径 | 无需修改核心清单 | 用户输入触发任意导入；拼写和信任问题推迟到运行时 | 不采用 |
 | Python entry points | 可让第三方站点独立打包发布 | 需要公共 API、版本、依赖冲突、来源信任和故障隔离协议 | 暂缓 |
 
-清单中的模块路径来自受审查的项目源码，不接受用户环境变量覆盖，因此不等同于配置驱动的任意
-模块导入。
+清单中的站点 ID 是受审查的模块白名单，不扫描目录，也不接受用户环境变量覆盖，因此不等同于
+配置驱动的任意模块导入。
 
 ## 4. 自动化边界
 
@@ -46,14 +45,14 @@ GitHub Actions 在解析工作流时不能运行项目 Python；青龙订阅也�
 - 账号环境变量及基础地址模板。
 - CLI 合法站点、Checker 加载和青龙配置允许键。
 - GitHub Actions 站点下拉项与 Secret 引用。
-- 青龙任务入口、任务标题、cron、状态路径及公共教程表格。
-- README 的站点功能、配置、命令和文档索引。
+- 青龙任务入口、任务标题和 cron。
 
 以下内容必须人工完成，因为它们取决于第三方站点行为或外部账户权限：
 
 - HTTP 请求、登录身份识别和成功证据判断。
 - 页面或接口 fixture 及异常边界测试。
 - Cookie、Token 获取步骤、站点规则和限制说明。
+- README、青龙教程和站点文档等面向用户的说明。
 - GitHub Repository Secrets 和青龙持久化配置中的真实值。
 - 使用测试账号进行的本地、Actions 和青龙实机验证。
 

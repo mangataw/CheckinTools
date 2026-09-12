@@ -1,0 +1,33 @@
+schema_version = 1
+
+[defaults]
+qinglong_cron = "30 0,8 * * *"
+state_timezone = "local"
+
+[[sites]]
+id = "javbus"
+display_name = "JavBus"
+base_url = "https://www.javbus.com"
+
+[sites.credentials]
+cookie = "JAVBUS_COOKIES"
+
+[[sites]]
+id = "fuliba"
+display_name = "福利吧"
+base_url = "https://www.wnflb2023.com"
+
+[sites.credentials]
+username = "FULIBA_USERNAMES"
+cookie = "FULIBA_COOKIES"
+
+[[sites]]
+id = "v2ex"
+display_name = "V2EX"
+base_url = "https://www.v2ex.com"
+qinglong_cron = "30 8,16 * * *"
+state_timezone = "UTC"
+
+[sites.credentials]
+username = "V2EX_USERNAMES"
+cookie = "V2EX_COOKIES"

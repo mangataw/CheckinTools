@@ -1,4 +1,4 @@
-"""Generate static deployment files from the canonical site catalog."""
+"""Generate machine-owned deployment files from the canonical site catalog."""
 
 from __future__ import annotations
 
@@ -28,67 +28,23 @@ def _quoted(value: str) -> str:
     return "'" + value.replace("'", "\\'") + "'"
 
 
-def render_local_env() -> str:
-    lines = [
-        GENERATED_MARKER,
-        "# Multi-account values use a literal \\n between entries.",
-        "",
-    ]
-    for definition in SITE_DEFINITIONS:
-        lines.append(f"# {definition.display_name}")
-        if len(definition.credential_fields) > 1:
-            labels = " / ".join(field.display_name for field in definition.credential_fields)
-            lines.append(f"# {labels} fields must use matching line numbers.")
-        for field in definition.credential_fields:
-            lines.append(f"{field.env_key}={_quoted(field.example)}")
-        lines.append("")
-
-    lines.extend(
-        [
-            "# Optional signed robot notifications. Leave both values empty to disable a channel.",
-            "# DingTalk access token is only the value after access_token=, "
-            "not the full Webhook URL.",
-            "DINGTALK_ACCESS_TOKEN=",
-            "DINGTALK_SECRET=",
-            "FEISHU_WEBHOOK=",
-            "FEISHU_SECRET=",
-            "",
-            "# Notification routing: auto (DingTalk first), all, dingtalk, or feishu.",
-            "CHECKIN_NOTIFY_CHANNEL=auto",
-            "# Message mode: summary or individual.",
-            "CHECKIN_NOTIFY_MODE=summary",
-            "",
-            "# Optional runtime overrides.",
-        ]
-    )
-    lines.extend(
-        f"{definition.base_url_key}={definition.default_base_url}"
-        for definition in SITE_DEFINITIONS
-    )
-    lines.extend(["CHECKIN_TIMEOUT_SECONDS=20", "CHECKIN_RETRIES=2", ""])
-    return "\n".join(lines)
-
-
 def render_qinglong_env() -> str:
     lines = [
         GENERATED_MARKER,
         "# CheckinTools 青龙集中配置模板",
         "# 订阅首次复制本模板；后续更新只向持久化配置追加缺失字段，不覆盖已有值。",
         "# 请在青龙“配置文件”中编辑复制后的文件，不要编辑仓库目录中的本文件。",
-        "# 多账号使用字面量 \\n 分隔；Cookie 建议使用单引号。",
+        "# 多账号使用字面量 \\n 分隔；同站点的凭据必须按相同行号对应。",
         "",
     ]
     for definition in SITE_DEFINITIONS:
         lines.append(f"# ── {definition.display_name} " + "─" * 60)
-        if len(definition.credential_fields) > 1:
-            labels = " 与 ".join(field.display_name for field in definition.credential_fields)
-            lines.append(f"# {labels}必须按相同行号一一对应。")
-        lines.extend(f"{field.env_key}=''" for field in definition.credential_fields)
+        lines.extend(f"{env_key}=''" for env_key in definition.credentials.values())
         lines.append("")
 
     lines.append("# ── 站点地址 " + "─" * 58)
     lines.extend(
-        f"{definition.base_url_key}={_quoted(definition.default_base_url)}"
+        f"{definition.base_url_key}={_quoted(definition.base_url)}"
         for definition in SITE_DEFINITIONS
     )
     lines.extend(
@@ -116,11 +72,12 @@ def render_qinglong_env() -> str:
     return "\n".join(lines)
 
 
-def render_qinglong_task(site: str) -> str:
-    definition = next(item for item in SITE_DEFINITIONS if item.site == site)
+def render_qinglong_task(site_id: str) -> str:
+    definition = next(item for item in SITE_DEFINITIONS if item.id == site_id)
+    task_name = f"CheckinTools - {definition.display_name} 签到"
     return f'''"""
 cron: {definition.qinglong_cron}
-new Env('{definition.qinglong_task_name}');
+new Env('{task_name}');
 """
 
 {GENERATED_MARKER}
@@ -128,203 +85,56 @@ new Env('{definition.qinglong_task_name}');
 from checkin_base import run_site
 
 if __name__ == "__main__":
-    raise SystemExit(run_site("{definition.site}"))
+    raise SystemExit(run_site("{definition.id}"))
 '''
 
 
 def render_actions_options() -> str:
     return "\n".join(
-        ["          - all", *(f"          - {item.site}" for item in SITE_DEFINITIONS)]
+        ["          - all", *(f"          - {item.id}" for item in SITE_DEFINITIONS)]
     )
 
 
 def render_actions_secrets() -> str:
     return "\n".join(
-        f"          {field.env_key}: ${{{{ secrets.{field.env_key} }}}}"
+        f"          {env_key}: ${{{{ secrets.{env_key} }}}}"
         for definition in SITE_DEFINITIONS
-        for field in definition.credential_fields
+        for env_key in definition.credentials.values()
     )
 
 
-def render_readme_features() -> str:
-    lines = [f"- {definition.summary}" for definition in SITE_DEFINITIONS]
-    lines.extend(
-        [
-            "- 钉钉自定义群机器人通知",
-            "- 飞书自定义群机器人通知",
-            "- 多账号、失败隔离、每日两次执行与状态去重",
-        ]
+def _managed_actions(repo_root: Path) -> dict[Path, str]:
+    path = repo_root / ".github" / "workflows" / "checkin.yml"
+    if not path.is_file():
+        return {}
+    content = path.read_text(encoding="utf-8")
+    content = _replace_block(
+        content,
+        "          # BEGIN GENERATED: actions-site-options",
+        "          # END GENERATED: actions-site-options",
+        render_actions_options(),
     )
-    return "\n".join(lines)
-
-
-def render_readme_secrets() -> str:
-    lines = [
-        "至少需要配置一个站点：",
-        "",
-        "| Repository secret | 用途 |",
-        "| --- | --- |",
-    ]
-    lines.extend(
-        f"| `{field.env_key}` | {field.description} |"
-        for definition in SITE_DEFINITIONS
-        for field in definition.credential_fields
+    content = _replace_block(
+        content,
+        "          # BEGIN GENERATED: actions-site-secrets",
+        "          # END GENERATED: actions-site-secrets",
+        render_actions_secrets(),
     )
-    lines.extend(
-        [
-            "| `DINGTALK_ACCESS_TOKEN` | 可选，钉钉 Webhook 中 `access_token=` 后的值 |",
-            "| `DINGTALK_SECRET` | 可选，钉钉加签密钥 |",
-            "| `FEISHU_WEBHOOK` | 可选，飞书完整 HTTPS Webhook |",
-            "| `FEISHU_SECRET` | 可选，飞书签名密钥 |",
-        ]
-    )
-    return "\n".join(lines)
-
-
-def render_readme_commands() -> str:
-    lines = [
-        "```bash",
-        "python -m checkin_tools validate-config",
-        "python -m checkin_tools run --site all",
-    ]
-    lines.extend(
-        f"python -m checkin_tools run --site {definition.site}"
-        for definition in SITE_DEFINITIONS
-    )
-    lines.extend(
-        [
-            "python -m checkin_tools run --site all --no-notify",
-            "python -m checkin_tools notify-test --channel dingtalk",
-            "```",
-        ]
-    )
-    return "\n".join(lines)
-
-
-def render_readme_docs() -> str:
-    lines = [
-        "## 详细文档",
-        "",
-        "- [项目状态与验收记录](docs/project-status.md)",
-        "- [项目架构与目录说明](docs/architecture.md)",
-        "- [新增签到站点指南](docs/adding-a-site.md)",
-        "- [站点注册与插件机制决策](docs/extension-strategy.md)",
-        "- [非签到任务扩展边界](docs/non-checkin-tasks.md)",
-    ]
-    lines.extend(
-        f"- [{definition.display_name} 使用细则与 Cookie 获取]({definition.documentation})"
-        for definition in SITE_DEFINITIONS
-    )
-    lines.extend(
-        [
-            "- [钉钉与飞书通知配置](docs/notifications.md)",
-            "- [定时去重、安全与开发说明](docs/automation-and-development.md)",
-        ]
-    )
-    return "\n".join(lines)
-
-
-def render_qinglong_config_table() -> str:
-    lines = ["| 变量 | 用途 |", "| --- | --- |"]
-    lines.extend(
-        f"| `{field.env_key}` | {field.description} |"
-        for definition in SITE_DEFINITIONS
-        for field in definition.credential_fields
-    )
-    lines.extend(
-        [
-            "| `DINGTALK_ACCESS_TOKEN` / `DINGTALK_SECRET` | 可选钉钉通知，成对填写 |",
-            "| `FEISHU_WEBHOOK` / `FEISHU_SECRET` | 可选飞书通知，成对填写 |",
-        ]
-    )
-    return "\n".join(lines)
-
-
-def render_qinglong_state_files() -> str:
-    lines = ["```text"]
-    lines.extend(
-        f"/ql/data/checkin-tools/{definition.site}-state.json"
-        for definition in SITE_DEFINITIONS
-    )
-    lines.append("```")
-    return "\n".join(lines)
-
-
-def _managed_files(repo_root: Path) -> dict[Path, str]:
-    specifications = {
-        repo_root / ".github" / "workflows" / "checkin.yml": (
-            (
-                "          # BEGIN GENERATED: actions-site-options",
-                "          # END GENERATED: actions-site-options",
-                render_actions_options(),
-            ),
-            (
-                "          # BEGIN GENERATED: actions-site-secrets",
-                "          # END GENERATED: actions-site-secrets",
-                render_actions_secrets(),
-            ),
-        ),
-        repo_root / "README.md": (
-            (
-                "<!-- BEGIN GENERATED: readme-supported-sites -->",
-                "<!-- END GENERATED: readme-supported-sites -->",
-                render_readme_features(),
-            ),
-            (
-                "<!-- BEGIN GENERATED: readme-site-secrets -->",
-                "<!-- END GENERATED: readme-site-secrets -->",
-                render_readme_secrets(),
-            ),
-            (
-                "<!-- BEGIN GENERATED: readme-site-commands -->",
-                "<!-- END GENERATED: readme-site-commands -->",
-                render_readme_commands(),
-            ),
-            (
-                "<!-- BEGIN GENERATED: readme-site-docs -->",
-                "<!-- END GENERATED: readme-site-docs -->",
-                render_readme_docs(),
-            ),
-        ),
-        repo_root / "docs" / "qinglong.md": (
-            (
-                "<!-- BEGIN GENERATED: qinglong-site-config -->",
-                "<!-- END GENERATED: qinglong-site-config -->",
-                render_qinglong_config_table(),
-            ),
-            (
-                "<!-- BEGIN GENERATED: qinglong-state-files -->",
-                "<!-- END GENERATED: qinglong-state-files -->",
-                render_qinglong_state_files(),
-            ),
-        ),
-    }
-    managed = {}
-    for path, blocks in specifications.items():
-        if not path.is_file():
-            continue
-        content = path.read_text(encoding="utf-8")
-        for start, end, body in blocks:
-            content = _replace_block(content, start, end, body)
-        managed[path] = content
-    return managed
+    return {path: content}
 
 
 def generated_files(repo_root: Path = REPO_ROOT) -> dict[Path, str]:
-    files = {
-        repo_root / ".env.example": render_local_env(),
-        repo_root / "qinglong" / "checkin-tools.env": render_qinglong_env(),
-    }
+    files = {repo_root / "qinglong" / "checkin-tools.env": render_qinglong_env()}
     task_dir = repo_root / "qinglong" / "DefaultTasks"
     files.update(
         {
-            task_dir / f"checkin_task_{definition.site}.py": render_qinglong_task(
-                definition.site
+            task_dir / f"checkin_task_{definition.id}.py": render_qinglong_task(
+                definition.id
             )
             for definition in SITE_DEFINITIONS
         }
     )
-    files.update(_managed_files(repo_root))
+    files.update(_managed_actions(repo_root))
     return files
 
 

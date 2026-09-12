@@ -83,7 +83,6 @@ CheckinTools 现有 Python 包和各站点的独立任务。
 
 没有使用的站点保持为空，并在「定时任务」中禁用对应任务。主要变量如下：
 
-<!-- BEGIN GENERATED: qinglong-site-config -->
 | 变量 | 用途 |
 | --- | --- |
 | `JAVBUS_COOKIES` | JavBus，每行一个账号 Cookie |
@@ -93,7 +92,6 @@ CheckinTools 现有 Python 包和各站点的独立任务。
 | `V2EX_COOKIES` | V2EX 完整 Cookie，与用户名按行对应 |
 | `DINGTALK_ACCESS_TOKEN` / `DINGTALK_SECRET` | 可选钉钉通知，成对填写 |
 | `FEISHU_WEBHOOK` / `FEISHU_SECRET` | 可选飞书通知，成对填写 |
-<!-- END GENERATED: qinglong-site-config -->
 
 多账号使用字面量 `\n` 分隔，用户名和 Cookie 必须逐项对应：
 
@@ -112,6 +110,7 @@ FULIBA_COOKIES='cookie1\ncookie2'
 beautifulsoup4
 python-dotenv
 requests
+tomli（仅 Python 3.10）
 ```
 
 通常不再需要在青龙依赖管理中逐个添加。青龙 Docker 内的 Python 需要 3.10 或更高版本，
@@ -121,13 +120,11 @@ requests
 
 各任务分别保存状态：
 
-<!-- BEGIN GENERATED: qinglong-state-files -->
 ```text
 /ql/data/checkin-tools/javbus-state.json
 /ql/data/checkin-tools/fuliba-state.json
 /ql/data/checkin-tools/v2ex-state.json
 ```
-<!-- END GENERATED: qinglong-state-files -->
 
 每个站点当天首次执行后，第二次执行会重试签到失败的账号，并跳过当天已经签到成功或已经签到的
 账号。V2EX 按 UTC 日期保存状态，在北京时间 08:00 换日，与站点每日奖励一致；
@@ -152,4 +149,4 @@ requests
 - 某站点提示未配置：填写该站点参数，或禁用该站点任务。
 - 时间不符：检查青龙 Docker 的时区；任务 cron 使用容器当地时间。
 
-各站点的 Cookie 获取方法参阅 README 中自动生成的站点文档列表。
+各站点的 Cookie 获取方法参阅 README 中人工维护的站点文档列表。
