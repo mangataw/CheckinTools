@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 DEFAULT_CONFIG_FILE = Path("/ql/data/config/checkin-tools.env")
 QINGLONG_CONFIG_KEYS = {"CHECKIN_QINGLONG_DATA_DIR"}
+QINGLONG_SOURCE_ROOTS = (Path("/ql/data/repo"), Path("/ql/data/scripts"))
 
 
 def _config_keys() -> frozenset[str]:
@@ -48,19 +49,23 @@ def _load_settings(environ: Mapping[str, str]) -> tuple[Path, dict[str, str]]:
 def _add_source_path() -> None:
     """Load the src-layout package from the repository pulled by Qinglong."""
     script_dir = Path(__file__).resolve().parent
-    candidates = [
+    candidates = []
+    for qinglong_root in QINGLONG_SOURCE_ROOTS:
+        if qinglong_root.is_dir():
+            candidates.extend(qinglong_root.glob("*/src"))
+    candidates.extend(
+        [
         script_dir / "src",
         script_dir.parent / "src",
         script_dir.parent.parent / "src",
-    ]
-    for qinglong_root in (Path("/ql/data/repo"), Path("/ql/data/scripts")):
-        if qinglong_root.is_dir():
-            candidates.extend(qinglong_root.glob("*/src"))
+        ]
+    )
     for candidate in candidates:
-        if (candidate / "checkin_tools").is_dir():
+        package = candidate / "checkin_tools"
+        if (package / "__init__.py").is_file() and (package / "sites.toml").is_file():
             sys.path.insert(0, str(candidate))
             return
-    raise RuntimeError("订阅目录中缺少 src/checkin_tools")
+    raise RuntimeError("订阅目录中缺少完整的 src/checkin_tools/sites.toml")
 
 
 def _site_is_configured(site: str, settings: Mapping[str, str]) -> bool:

@@ -49,6 +49,8 @@ def test_single_subscription_prefix_selects_all_qinglong_files():
     guide = Path("docs/qinglong.md").read_text(encoding="utf-8")
     assert '"checkin_task_[a-z0-9_]+[.]py"' in guide
     assert "checkin_setup.py" in guide
+    assert '"main" "py toml"' in guide
+    assert "| 文件后缀 | `py toml` |" in guide
 
 
 def test_subscription_regex_selects_only_site_task_entries():
@@ -138,6 +140,31 @@ def test_template_keys_match_runtime_allowlist():
 
 def test_source_layout():
     checkin_base._add_source_path()
+
+
+def test_source_layout_skips_script_mirror_without_catalog(tmp_path, monkeypatch):
+    script_root = tmp_path / "scripts" / "mangataw_CheckinTools_main"
+    incomplete_package = script_root / "src" / "checkin_tools"
+    incomplete_package.mkdir(parents=True)
+    (incomplete_package / "__init__.py").write_text("", encoding="utf-8")
+
+    repository_source = tmp_path / "repo" / "mangataw_CheckinTools_main" / "src"
+    complete_package = repository_source / "checkin_tools"
+    complete_package.mkdir(parents=True)
+    (complete_package / "__init__.py").write_text("", encoding="utf-8")
+    (complete_package / "sites.toml").write_text("schema_version = 1", encoding="utf-8")
+
+    monkeypatch.setattr(checkin_base, "__file__", str(script_root / "checkin_base.py"))
+    monkeypatch.setattr(
+        checkin_base,
+        "QINGLONG_SOURCE_ROOTS",
+        (tmp_path / "repo", tmp_path / "scripts"),
+    )
+    monkeypatch.setattr(sys, "path", sys.path.copy())
+
+    checkin_base._add_source_path()
+
+    assert sys.path[0] == str(repository_source)
 
 
 def test_site_configuration_and_qinglong_local_dates():

@@ -15,10 +15,11 @@ CheckinTools 是一个面向个人使用的可扩展自动签到工具，主要�
 在青龙「订阅管理 → 新建订阅」中粘贴：
 
 ```text
-ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_[a-z0-9_]+[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py"
+ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_[a-z0-9_]+[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py toml"
 ```
 
-详细设置参阅 [青龙使用教程](docs/qinglong.md)。
+文件后缀必须包含 `py toml`，确保 Python 模块和站点清单都复制到任务目录。已有订阅需要更新该
+字段并重新运行一次订阅。详细设置参阅 [青龙使用教程](docs/qinglong.md)。
 
 ## GitHub Actions 使用
 

@@ -15,7 +15,7 @@ JavBus 和福利吧按青龙容器当地时间每天 `00:30` 和 `08:30` 运行�
 在青龙「订阅管理 → 新建订阅」最上面的名称输入框粘贴：
 
 ```text
-ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_[a-z0-9_]+[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py"
+ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_[a-z0-9_]+[.]py" "" "checkin_base.py|checkin_setup.py|src" "main" "py toml"
 ```
 
 这条命令用于自动展开仓库地址和白名单。新版青龙仍需在图形界面补充名称、订阅更新计划
@@ -32,7 +32,7 @@ ql repo "https://github.com/mangataw/CheckinTools.git" "checkin_task_[a-z0-9_]+[
 | 白名单 | 与上方命令的第 2 个参数相同 |
 | 黑名单 | 留空 |
 | 依赖文件 | 与上方命令的第 4 个参数相同 |
-| 文件后缀 | `py` |
+| 文件后缀 | `py toml` |
 | 执行后 | `python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_setup.py` |
 | 自动添加任务 | 开启 |
 | 自动删除任务 | 开启 |
@@ -74,7 +74,8 @@ python3 /ql/data/repo/mangataw_CheckinTools_main/qinglong/DefaultTasks/checkin_s
 - 黑名单留空，因为白名单已经排除了公共文件。
 - 依赖文件填写 `checkin_base.py|checkin_setup.py|src`，让各任务和执行后钩子仍能使用公共
   代码及原项目源码。
-- 文件后缀填 `py`，让青龙扫描 Python 任务。
+- 文件后缀填 `py toml`，让青龙复制 Python 模块和 `sites.toml` 静态站点清单。TOML 文件没有
+  cron 元数据，不会被创建为定时任务。
 
 这种形式参考 BiliBiliToolPro 的 `qinglong/DefaultTasks` 和统一任务前缀做法，同时保留
 CheckinTools 现有 Python 包和各站点的独立任务。
@@ -147,6 +148,7 @@ tomli（仅 Python 3.10）
 - 没有配置文件：检查订阅日志中的执行后命令和订阅唯一值目录。
 - 提示缺包：重新运行订阅并检查“执行后”的 pip 日志。
 - 某站点提示未配置：填写该站点参数，或禁用该站点任务。
+- 提示缺少 `sites.toml`：把订阅的文件后缀改为 `py toml`，保存后重新运行一次订阅。
 - 时间不符：检查青龙 Docker 的时区；任务 cron 使用容器当地时间。
 
 各站点的 Cookie 获取方法参阅 README 中人工维护的站点文档列表。
