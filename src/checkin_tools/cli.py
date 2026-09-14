@@ -8,9 +8,9 @@ from collections.abc import Mapping
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from checkin_tools.catalog import SITE_IDS
 from checkin_tools.config import ConfigError, load_config
 from checkin_tools.security import configure_logging, register_ci_masks
-from checkin_tools.site_catalog import SITE_IDS
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -72,7 +72,7 @@ def main(
         logging.info("configuration is valid")
         return 0
 
-    from checkin_tools.models import RunReport
+    from checkin_tools.contracts import RunReport
     from checkin_tools.runner import Runner
 
     if args.command == "notify-test":

@@ -11,11 +11,9 @@ from urllib.parse import urlsplit
 import requests
 
 from checkin_tools.config import FeishuConfig
-from checkin_tools.http import SafeHttpClient
-from checkin_tools.interfaces import Notifier
-from checkin_tools.models import RunReport
-from checkin_tools.notifiers.common import format_summary
-from checkin_tools.notifiers.dingtalk import NotificationError
+from checkin_tools.contracts import Notifier, RunReport
+from checkin_tools.http_client import SafeHttpClient
+from checkin_tools.notifiers.common import NotificationError, format_summary
 
 
 def feishu_signature(timestamp: int, secret: str) -> str:
@@ -58,4 +56,3 @@ class FeishuNotifier(Notifier):
         code = payload.get("code", payload.get("StatusCode"))
         if code != 0:
             raise NotificationError(f"Feishu rejected the message (code {code})")
-

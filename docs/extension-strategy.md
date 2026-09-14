@@ -2,7 +2,7 @@
 
 状态：采用受信任的集中清单、通用配置模型和静态文件生成；暂不引入运行时插件发现。
 
-更新日期：2026-09-08
+更新日期：2026-09-14
 
 ## 1. 背景
 
@@ -22,6 +22,8 @@ CheckinTools 同时支持本地 CLI、GitHub Actions 和青龙 Docker。平台�
 4. `sync_sites.py` 只生成青龙配置模板、青龙任务入口、Actions 站点选项与 Secrets 映射。
 5. 生成后的静态文件提交到仓库，CI 使用 `sync_sites.py --check` 阻止清单和生成结果漂移。
 6. 站点请求、页面解析、成功证据、fixture、行为测试和专用说明仍由开发者实现。
+7. `contracts.py` 集中维护结果模型与 Checker、Notifier 契约；Runner 直接拒绝重复 Checker 和
+   通知渠道，不再设置独立注册模块。
 
 GitHub Actions 在解析工作流时不能运行项目 Python；青龙订阅也必须先看到包含 cron 元数据的静态
 入口。因此生成并提交静态文件比运行时发现更符合两个平台的工作方式。
@@ -67,6 +69,10 @@ GitHub Actions 在解析工作流时不能运行项目 Python；青龙订阅也�
 
 站点数量增加本身不是引入插件系统的充分理由。只要站点仍在同一仓库审查并需要三个运行平台，
 集中清单加生成器更直接。
+
+核心包保持扁平，`catalog.py`、`config.py`、`contracts.py`、`http_client.py`、`runner.py`、
+`security.py` 和 `state.py` 分别表达稳定职责。只为会横向增加的站点与通知实现保留
+`checkers/`、`notifiers/`，不引入 `core/`、`services/` 或 `utils/` 等空泛层级。
 
 ## 6. 未来插件协议的最低要求
 

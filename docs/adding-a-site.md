@@ -40,10 +40,10 @@ state_timezone = "UTC"
 新建 `src/checkin_tools/checkers/example.py` 并导出 `SiteChecker`：
 
 ```python
+from checkin_tools.catalog import SiteDefinition
 from checkin_tools.config import AppConfig, SiteAccount
-from checkin_tools.http import SafeHttpClient
-from checkin_tools.interfaces import Checker
-from checkin_tools.site_catalog import SiteDefinition
+from checkin_tools.contracts import Checker
+from checkin_tools.http_client import SafeHttpClient
 
 
 class ExampleChecker(Checker):

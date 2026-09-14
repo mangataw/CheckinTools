@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from importlib import import_module
 
-from checkin_tools.interfaces import Checker
-from checkin_tools.site_catalog import SITE_DEFINITIONS, SiteDefinition
+from checkin_tools.catalog import SITE_DEFINITIONS, SiteDefinition
+from checkin_tools.contracts import Checker
 
 
 def _checker_type(definition: SiteDefinition) -> type[Checker]:

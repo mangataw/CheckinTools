@@ -7,14 +7,10 @@ import pytest
 import requests
 
 from checkin_tools.config import DingTalkConfig, FeishuConfig, load_config
-from checkin_tools.models import CheckinResult, ResultStatus, RunReport
+from checkin_tools.contracts import CheckinResult, ResultStatus, RunReport
 from checkin_tools.notifiers import build_notifiers
-from checkin_tools.notifiers.common import format_summary
-from checkin_tools.notifiers.dingtalk import (
-    DingTalkNotifier,
-    NotificationError,
-    dingtalk_signature,
-)
+from checkin_tools.notifiers.common import NotificationError, format_summary
+from checkin_tools.notifiers.dingtalk import DingTalkNotifier, dingtalk_signature
 from checkin_tools.notifiers.feishu import FeishuNotifier, feishu_signature
 
 

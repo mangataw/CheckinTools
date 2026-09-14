@@ -11,12 +11,11 @@ from datetime import datetime, timezone
 import requests
 from bs4 import BeautifulSoup
 
+from checkin_tools.catalog import SiteDefinition, site_definition
 from checkin_tools.config import AppConfig, SiteAccount
-from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
-from checkin_tools.interfaces import Checker
-from checkin_tools.models import CheckinResult, ResultStatus
+from checkin_tools.contracts import Checker, CheckinResult, ResultStatus
+from checkin_tools.http_client import SafeHttpClient, UnsafeRedirectError
 from checkin_tools.security import sanitize_text
-from checkin_tools.site_catalog import SiteDefinition, site_definition
 
 _MISSION_PATH = "/mission/daily"
 _BALANCE_PATH = "/balance"

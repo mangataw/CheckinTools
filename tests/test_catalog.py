@@ -2,9 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from checkin_tools.checkers import build_checkers
-from checkin_tools.config import APP_CONFIG_KEYS, load_config
-from checkin_tools.site_catalog import (
+from checkin_tools.catalog import (
     SITE_CONFIG_KEYS,
     SITE_DEFINITIONS,
     SITE_IDS,
@@ -13,6 +11,8 @@ from checkin_tools.site_catalog import (
     site_definition,
     validate_site_definitions,
 )
+from checkin_tools.checkers import build_checkers
+from checkin_tools.config import APP_CONFIG_KEYS, load_config
 
 
 def write_catalog(tmp_path: Path, body: str) -> Path:

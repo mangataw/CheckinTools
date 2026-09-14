@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
 
-from checkin_tools.models import ResultStatus, RunReport
+from checkin_tools.contracts import ResultStatus, RunReport
 
 _STATE_VERSION = 2
 

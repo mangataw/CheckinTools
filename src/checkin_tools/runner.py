@@ -7,9 +7,14 @@ import time
 from collections.abc import Iterable
 from dataclasses import replace
 
-from checkin_tools.interfaces import Checker, Notifier
-from checkin_tools.models import CheckinResult, NotificationResult, ResultStatus, RunReport
-from checkin_tools.registry import checker_map
+from checkin_tools.contracts import (
+    Checker,
+    CheckinResult,
+    NotificationResult,
+    Notifier,
+    ResultStatus,
+    RunReport,
+)
 from checkin_tools.security import sanitize_text
 from checkin_tools.state import account_state_key
 
@@ -25,8 +30,15 @@ class Runner:
         notification_mode: str = "summary",
         terminal_accounts: set[str] | None = None,
     ) -> None:
-        self.checkers = checker_map(checkers)
+        self.checkers: dict[str, Checker] = {}
+        for checker in checkers:
+            if checker.site in self.checkers:
+                raise ValueError(f"duplicate checker: {checker.site}")
+            self.checkers[checker.site] = checker
         self.notifiers = list(notifiers)
+        channels = [notifier.channel for notifier in self.notifiers]
+        if len(channels) != len(set(channels)):
+            raise ValueError("duplicate notifier channel")
         self.secrets = secrets
         self.notification_mode = notification_mode
         self.terminal_accounts = terminal_accounts or set()

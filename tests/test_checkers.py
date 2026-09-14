@@ -10,8 +10,8 @@ from checkin_tools.checkers.fuliba import FulibaChecker
 from checkin_tools.checkers.javbus import JavBusChecker
 from checkin_tools.checkers.v2ex import V2exChecker
 from checkin_tools.config import FulibaAccount, V2exAccount, load_config
-from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
-from checkin_tools.models import ResultStatus
+from checkin_tools.contracts import ResultStatus
+from checkin_tools.http_client import SafeHttpClient, UnsafeRedirectError
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from checkin_tools.site_catalog import SITE_DEFINITIONS, SITE_IDS
+from checkin_tools.catalog import SITE_DEFINITIONS, SITE_IDS
 from qinglong.DefaultTasks import checkin_base, checkin_setup
 
 TASK_DIR = Path("qinglong/DefaultTasks")

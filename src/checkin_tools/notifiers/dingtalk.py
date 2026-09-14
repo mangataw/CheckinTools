@@ -11,14 +11,9 @@ from urllib.parse import quote_plus
 import requests
 
 from checkin_tools.config import DingTalkConfig
-from checkin_tools.http import SafeHttpClient
-from checkin_tools.interfaces import Notifier
-from checkin_tools.models import RunReport
-from checkin_tools.notifiers.common import format_summary
-
-
-class NotificationError(RuntimeError):
-    pass
+from checkin_tools.contracts import Notifier, RunReport
+from checkin_tools.http_client import SafeHttpClient
+from checkin_tools.notifiers.common import NotificationError, format_summary
 
 
 def dingtalk_signature(timestamp_ms: int, secret: str) -> str:

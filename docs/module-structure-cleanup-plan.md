@@ -1,6 +1,6 @@
 # 公共模块结构整理计划
 
-状态：目标设计，尚未实施
+状态：已于 2026-09-14 实施
 
 计划顺序：第二阶段
 前置计划：[站点清单与生成流程简化计划](site-catalog-simplification-plan.md)
@@ -413,7 +413,7 @@ python -m pytest --cov=checkin_tools --cov-report=term-missing
 并使用搜索确认：
 
 ```powershell
-rg "checkin_tools\.(models|interfaces|registry|site_catalog|http)" .
+rg "checkin_tools\.(models|interfaces|registry|site_catalog|http)(\.|\s|$)" .
 rg "from checkin_tools\.notifiers\.(dingtalk|feishu) import NotificationError" .
 ```
 

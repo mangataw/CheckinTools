@@ -34,15 +34,13 @@ CheckinTools/
 ├─ src/checkin_tools/
 │  ├─ checkers/                   # 站点账号、请求、解析与成功判断
 │  ├─ notifiers/                  # 钉钉与飞书通知实现及消息格式
+│  ├─ catalog.py                  # 静态清单读取、默认值合并与校验
 │  ├─ cli.py                      # 命令解析和运行入口
 │  ├─ config.py                   # 环境变量读取、类型转换与严格校验
-│  ├─ http.py                     # HTTPS、同主机重定向与有限重试
-│  ├─ interfaces.py               # Checker 与 Notifier 接口
-│  ├─ models.py                   # 签到、通知及整次运行的结果模型
-│  ├─ registry.py                 # 实例映射与重复名称检查
+│  ├─ contracts.py                # 结果模型及 Checker、Notifier 契约
+│  ├─ http_client.py              # HTTPS、同主机重定向与有限重试
 │  ├─ runner.py                   # 站点选择、账号隔离和通知调度
 │  ├─ security.py                 # 日志脱敏与 GitHub Actions 掩码
-│  ├─ site_catalog.py             # 静态清单读取、默认值合并与校验
 │  ├─ sites.toml                  # 站点 ID、名称、地址、凭据、调度与时区
 │  └─ state.py                    # 每日成功状态的读取和保存
 ├─ tests/                         # 核心代码、工作流与青龙入口测试
@@ -70,11 +68,11 @@ GitHub Actions 直接注入 Secrets 和 Variables；青龙入口读取持久化�
 
 ### 3.2 组件构建
 
-`sites.toml` 是内置站点静态元数据的唯一来源。`site_catalog.py` 使用 package resources 读取、
+`sites.toml` 是内置站点静态元数据的唯一来源。`catalog.py` 使用 package resources 读取、
 合并默认值并严格校验。`config.py` 按清单统一构建 `SiteConfig` 和 `SiteAccount`；
 `checkers.build_checkers()` 按 ID 约定加载 `checkin_tools.checkers.<id>.SiteChecker`；
-`notifiers.build_notifiers()` 根据通知配置选择钉钉、飞书或两者。`registry.py` 将实例转成按
-站点或渠道名称索引的映射，并拒绝重复名称。
+`notifiers.build_notifiers()` 根据通知配置选择钉钉、飞书或两者。Runner 将 Checker 实例转成按
+站点索引的映射，并在构造时拒绝重复站点或通知渠道。
 
 `tools/sync_sites.py` 只生成机器必须一致的青龙配置模板、青龙入口、GitHub Actions 选项与
 Secrets 映射。README 和普通说明文档人工维护。CI 使用 `--check` 确认生成结果已提交。新增站点
@@ -145,3 +143,8 @@ GitHub Actions 使用北京时间生成状态日期。青龙按清单的 `state_
 当前状态模型围绕“每个账号每天一次”的签到任务设计。若加入下载、备份、监控或一天多阶段执行
 的脚本，需要先定义新的任务结果和状态周期，不能直接假设现有每日终态语义适用。可复用能力、
 任务分类和兼容路径参阅 [非签到任务扩展边界](non-checkin-tasks.md)。
+
+公共模块保持扁平：`contracts.py` 只定义跨层数据与扩展契约，`catalog.py` 不导入具体 Checker，
+`state.py` 不依赖 Runner，`http_client.py` 不感知具体站点或通知渠道。只有会横向增加实现的
+`checkers/` 与 `notifiers/` 保留为子目录；通知渠道共享的格式与异常位于 `notifiers/common.py`，
+具体渠道之间不相互导入。

@@ -69,7 +69,7 @@ def _add_source_path() -> None:
 
 
 def _site_is_configured(site: str, settings: Mapping[str, str]) -> bool:
-    from checkin_tools.site_catalog import site_definition
+    from checkin_tools.catalog import site_definition
 
     definition = site_definition(site)
     return any(settings.get(key, "").strip() for key in definition.credential_keys)
@@ -77,7 +77,7 @@ def _site_is_configured(site: str, settings: Mapping[str, str]) -> bool:
 
 def _state_date(site: str, now: datetime | None = None) -> str:
     """Return the catalog-configured state date for a site."""
-    from checkin_tools.site_catalog import site_definition
+    from checkin_tools.catalog import site_definition
 
     definition = site_definition(site)
     now = now or datetime.now().astimezone()
@@ -111,7 +111,7 @@ def run_site(site: str) -> int:
     old_umask = os.umask(0o077)
     try:
         _add_source_path()
-        from checkin_tools.site_catalog import site_definition
+        from checkin_tools.catalog import site_definition
 
         site_definition(site)
         config_path, settings = _load_settings(os.environ)

@@ -1,6 +1,6 @@
-from checkin_tools.interfaces import Checker, Notifier
-from checkin_tools.models import CheckinResult, ResultStatus
-from checkin_tools.registry import checker_map, notifier_map
+import pytest
+
+from checkin_tools.contracts import Checker, CheckinResult, Notifier, ResultStatus
 from checkin_tools.runner import Runner
 from checkin_tools.state import DailyState
 
@@ -124,10 +124,8 @@ def test_individual_notification_mode_sends_one_message_per_result():
 
 
 def test_registries_reject_duplicates():
-    import pytest
-
-    with pytest.raises(ValueError):
-        checker_map([FakeChecker(), FakeChecker()])
+    with pytest.raises(ValueError, match="duplicate checker: fake"):
+        Runner([FakeChecker(), FakeChecker()])
     first, second = FakeNotifier(), FakeNotifier()
-    with pytest.raises(ValueError):
-        notifier_map([first, second])
+    with pytest.raises(ValueError, match="duplicate notifier channel"):
+        Runner([], [first, second])

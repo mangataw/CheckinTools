@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from checkin_tools.models import ResultStatus, RunReport
+from checkin_tools.contracts import ResultStatus, RunReport
+
+
+class NotificationError(RuntimeError):
+    """A sanitized notification delivery failure."""
 
 
 def format_summary(report: RunReport) -> str:
@@ -26,4 +30,3 @@ def format_summary(report: RunReport) -> str:
         for item in report.results
     )
     return "\n".join(lines)
-

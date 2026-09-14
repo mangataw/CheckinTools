@@ -4,9 +4,8 @@ from types import ModuleType
 import pytest
 
 from checkin_tools import checkers, config
-from checkin_tools.interfaces import Checker
-from checkin_tools.models import CheckinResult, ResultStatus
-from checkin_tools.site_catalog import SiteDefinition
+from checkin_tools.catalog import SiteDefinition
+from checkin_tools.contracts import Checker, CheckinResult, ResultStatus
 from tools import sync_sites
 
 

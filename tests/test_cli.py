@@ -3,10 +3,9 @@ import os
 import pytest
 
 from checkin_tools import cli
+from checkin_tools.catalog import SITE_IDS
 from checkin_tools.config import load_config
-from checkin_tools.interfaces import Checker
-from checkin_tools.models import CheckinResult, ResultStatus
-from checkin_tools.site_catalog import SITE_IDS
+from checkin_tools.contracts import Checker, CheckinResult, ResultStatus
 
 
 @pytest.fixture(autouse=True)

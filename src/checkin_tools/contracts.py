@@ -1,9 +1,12 @@
-"""Shared result models."""
+"""Shared runtime models and extension interfaces."""
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 try:
     from enum import StrEnum
@@ -56,3 +59,29 @@ class RunReport:
         ):
             return 1
         return 0
+
+
+class Checker(ABC):
+    site: str
+    display_name: str
+
+    @property
+    @abstractmethod
+    def accounts(self) -> Sequence[Any]:
+        """Return configured accounts without exposing them in logs."""
+
+    def state_identity(self, account: Any) -> Sequence[str]:
+        """Return stable secret parts used only to derive an anonymous state key."""
+        return (repr(account),)
+
+    @abstractmethod
+    def check(self, account: Any, account_label: str) -> CheckinResult:
+        """Run one isolated account check-in."""
+
+
+class Notifier(ABC):
+    channel: str
+
+    @abstractmethod
+    def send(self, report: RunReport) -> None:
+        """Send exactly one summary or raise a sanitized exception."""

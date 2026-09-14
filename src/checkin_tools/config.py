@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
-from checkin_tools.site_catalog import (
+from checkin_tools.catalog import (
     SITE_CONFIG_KEYS,
     SITE_DEFINITIONS,
     SiteDefinition,

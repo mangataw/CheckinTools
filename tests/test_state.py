@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from checkin_tools.models import CheckinResult, NotificationResult, ResultStatus, RunReport
+from checkin_tools.contracts import CheckinResult, NotificationResult, ResultStatus, RunReport
 from checkin_tools.state import (
     DailyState,
     StateError,

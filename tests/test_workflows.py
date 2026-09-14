@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from checkin_tools.site_catalog import SITE_IDS
+from checkin_tools.catalog import SITE_IDS
 
 
 def workflow(name):

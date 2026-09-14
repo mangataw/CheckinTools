@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from checkin_tools.http import SafeHttpClient, UnsafeRedirectError
+from checkin_tools.http_client import SafeHttpClient, UnsafeRedirectError
 
 
 def response(status=200, location=None):
@@ -45,7 +45,7 @@ def test_rejects_cross_host_or_insecure_redirect(location):
 def test_retries_connection_errors_and_5xx():
     session = Mock(spec=requests.Session)
     session.request.side_effect = [requests.Timeout("late"), response(503), response()]
-    with patch("checkin_tools.http.time.sleep"):
+    with patch("checkin_tools.http_client.time.sleep"):
         result = SafeHttpClient("https://example.com", retries=2).get(session, "/")
     assert result.status_code == 200
     assert session.request.call_count == 3
@@ -59,4 +59,3 @@ def test_does_not_retry_authentication_error():
     with pytest.raises(requests.HTTPError):
         SafeHttpClient("https://example.com", retries=2).get(session, "/")
     assert session.request.call_count == 1
-
