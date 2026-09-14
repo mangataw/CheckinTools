@@ -81,11 +81,9 @@ GitHub Actions 默认计划时间为北京时间 09:00 和 14:00；平台负载�
 
 ## 详细文档
 
-- [项目状态与验收记录](docs/project-status.md)
 - [项目架构与目录说明](docs/architecture.md)
 - [新增签到站点指南](docs/adding-a-site.md)
 - [站点注册与插件机制决策](docs/extension-strategy.md)
-- [非签到任务扩展边界](docs/non-checkin-tasks.md)
 - [JavBus 使用细则与 Cookie 获取](docs/javbus.md)
 - [福利吧使用细则与 Cookie 获取](docs/fuliba.md)
 - [V2EX 使用细则与 Cookie 获取](docs/v2ex.md)
